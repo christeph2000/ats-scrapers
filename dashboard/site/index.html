@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job Radar</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='13' fill='none' stroke='%232f6f5e' stroke-width='3'/><circle cx='16' cy='16' r='4' fill='%232f6f5e'/></svg>">
+<style>
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1f1c; --muted: #6b6f68; --line: #e3e1da;
+  --accent: #2f6f5e; --accent-soft: #e2efe9; --new: #b4521d; --new-soft: #fbe9dc;
+  --chip: #efeee8; --danger: #9a3b3b; --shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141614; --panel: #1c1f1c; --ink: #e8e8e3; --muted: #9a9e96; --line: #2c302c;
+    --accent: #7cc4ad; --accent-soft: #1f3a32; --new: #f0a273; --new-soft: #3d2618;
+    --chip: #262a26; --danger: #e08a8a; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141614; --panel: #1c1f1c; --ink: #e8e8e3; --muted: #9a9e96; --line: #2c302c;
+  --accent: #7cc4ad; --accent-soft: #1f3a32; --new: #f0a273; --new-soft: #3d2618;
+  --chip: #262a26; --danger: #e08a8a; --shadow: none;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 20px 16px 60px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+.sub { color: var(--muted); font-size: 13px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; box-shadow: var(--shadow); }
+.stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 12px; }
+.stat.new b { color: var(--new); }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 12px; overflow-x: auto; }
+.tab { background: none; border: 0; padding: 8px 12px; color: var(--muted); font: inherit; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+.tab[aria-selected="true"] { color: var(--ink); border-color: var(--accent); font-weight: 600; }
+.tab small { color: var(--muted); font-weight: 400; margin-left: 4px; }
+.controls { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; margin-bottom: 10px; }
+input[type=search], select {
+  font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 10px; min-width: 0;
+}
+input[type=search]:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.chiprow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
+.chiprow .lbl { color: var(--muted); font-size: 12px; width: 52px; flex-shrink: 0; }
+.chip {
+  font: inherit; font-size: 13px; padding: 3px 10px; border-radius: 999px; cursor: pointer;
+  background: var(--chip); color: var(--ink); border: 1px solid transparent;
+}
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.chip.ghost { background: none; color: var(--muted); }
+.resultbar { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 13px; margin: 14px 0 6px; gap: 8px; flex-wrap: wrap; }
+.list { display: flex; flex-direction: column; gap: 6px; }
+.job {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; box-shadow: var(--shadow);
+}
+.job.applied { border-left: 3px solid var(--accent); }
+.job.saved { border-left: 3px solid var(--new); }
+.title { font-weight: 600; color: var(--ink); text-decoration: none; }
+.title:hover { text-decoration: underline; }
+.meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.meta .co { color: var(--ink); font-weight: 500; }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.tag { font-size: 11.5px; padding: 1px 7px; border-radius: 6px; background: var(--chip); color: var(--muted); }
+.tag.lvl { background: var(--accent-soft); color: var(--accent); }
+.badge { font-size: 11px; font-weight: 700; color: var(--new); background: var(--new-soft); padding: 1px 6px; border-radius: 5px; margin-left: 6px; vertical-align: 1px; }
+.actions { display: flex; gap: 4px; align-items: start; }
+.act {
+  font: inherit; font-size: 12.5px; padding: 4px 9px; border-radius: 7px; cursor: pointer;
+  background: none; border: 1px solid var(--line); color: var(--muted);
+}
+.act:hover { color: var(--ink); border-color: var(--muted); }
+.act.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.more { display: block; margin: 14px auto 0; }
+.empty { text-align: center; color: var(--muted); padding: 40px 10px; background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; }
+.foot { margin-top: 28px; color: var(--muted); font-size: 12.5px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.linkbtn { background: none; border: 0; color: var(--accent); cursor: pointer; font: inherit; padding: 0; text-decoration: underline; }
+@media (max-width: 640px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .controls { grid-template-columns: 1fr 1fr; }
+  .controls input[type=search] { grid-column: 1 / -1; }
+  .job { grid-template-columns: 1fr; }
+  .chiprow { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -16px; padding-right: 16px; }
+  .chiprow .lbl { width: auto; margin-right: 2px; }
+  .chip { white-space: nowrap; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Job Radar</h1>
+    <div class="sub" id="updated">Loading…</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><b id="s-total">–</b><span>matching roles</span></div>
+    <div class="stat new"><b id="s-new">–</b><span>new in last 24h</span></div>
+    <div class="stat"><b id="s-saved">–</b><span>saved</span></div>
+    <div class="stat"><b id="s-applied">–</b><span>applied</span></div>
+  </div>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+
+  <div class="controls">
+    <input type="search" id="q" placeholder="Search title or company…" aria-label="Search">
+    <select id="age" aria-label="Posted within">
+      <option value="0">Any date</option>
+      <option value="1">Seen in last 24h</option>
+      <option value="7" selected>Posted ≤ 7 days</option>
+      <option value="14">Posted ≤ 14 days</option>
+      <option value="30">Posted ≤ 30 days</option>
+    </select>
+    <select id="src" aria-label="Source"><option value="">All sources</option></select>
+    <select id="sort" aria-label="Sort">
+      <option value="seen">Newest first</option>
+      <option value="posted">Recently posted</option>
+      <option value="company">Company A–Z</option>
+    </select>
+  </div>
+
+  <div class="chiprow" id="row-place"><span class="lbl">Where</span></div>
+  <div class="chiprow" id="row-level"><span class="lbl">Level</span></div>
+  <div class="chiprow" id="row-stack"><span class="lbl">Stack</span></div>
+
+  <div class="resultbar"><span id="count"></span><button class="chip ghost" id="reset">Clear filters</button></div>
+  <div class="list" id="list"></div>
+  <button class="act more" id="more" hidden>Show more</button>
+
+  <div class="foot">
+    <span id="foot-src"></span>
+    <button class="linkbtn" id="export">Export my statuses</button>
+    <button class="linkbtn" id="import">Import</button>
+    <input type="file" id="importFile" accept="application/json" hidden>
+  </div>
+</div>
+
+<script>
+(() => {
+  const PAGE = 60;
+  const PLACES = [["home", "Bengaluru"], ["india", "Other India"], ["remote", "Remote"]];
+  const LEVELS = ["Junior", "Mid", "Senior", "Staff+", "Unspecified"];
+  const TABS = [["inbox", "Inbox"], ["saved", "Saved"], ["applied", "Applied"], ["hidden", "Hidden"]];
+  const KEY = "jobradar.v1";
+
+  const store = {
+    load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } },
+    save(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} }
+  };
+  let saved = store.load();
+  saved.status ||= {};        // id -> saved | applied | hidden
+  saved.mutedCompanies ||= [];
+
+  const state = { tab: "inbox", q: "", age: 7, src: "", sort: "seen",
+                  place: new Set(), level: new Set(), stack: new Set(), shown: PAGE };
+  let data = { jobs: [] };
+  let newestSeen = "";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function daysAgo(iso) {
+    if (!iso) return null;
+    return Math.floor((Date.now() - new Date(iso + "T00:00:00Z").getTime()) / 864e5);
+  }
+  function ago(iso) {
+    const d = daysAgo(iso);
+    if (d === null) return "date unknown";
+    return d <= 0 ? "today" : d === 1 ? "yesterday" : d + "d ago";
+  }
+  const persist = () => store.save(saved);
+  const statusOf = (j) => saved.status[j.id] || (saved.mutedCompanies.includes(j.company) ? "hidden" : "");
+
+  function chips(rowId, items, set) {
+    const row = $(rowId);
+    items.forEach(([val, label]) => {
+      const b = document.createElement("button");
+      b.className = "chip"; b.textContent = label; b.setAttribute("aria-pressed", "false");
+      b.onclick = () => { set.has(val) ? set.delete(val) : set.add(val);
+        b.setAttribute("aria-pressed", set.has(val)); state.shown = PAGE; render(); };
+      row.appendChild(b);
+    });
+  }
+
+  function matches(j) {
+    const st = statusOf(j);
+    if (state.tab === "inbox" ? st !== "" : st !== state.tab) return false;
+    if (state.q) {
+      const hay = (j.title + " " + j.company + " " + (j.department || "")).toLowerCase();
+      if (!state.q.split(/\s+/).every(w => hay.includes(w))) return false;
+    }
+    if (state.src && j.ats !== state.src) return false;
+    if (state.place.size && !state.place.has(j.place)) return false;
+    if (state.level.size && !state.level.has(j.level)) return false;
+    if (state.stack.size && !j.stack.some(s => state.stack.has(s))) return false;
+    if (state.tab === "inbox" && state.age) {
+      if (state.age === 1) { if (j.first_seen !== newestSeen) return false; }
+      else { const d = daysAgo(j.posted_at); if (d !== null && d > state.age) return false; }
+    }
+    return true;
+  }
+
+  function sorted(list) {
+    const by = {
+      seen: (a, b) => (b.first_seen || "").localeCompare(a.first_seen || "") || (b.posted_at || "").localeCompare(a.posted_at || ""),
+      posted: (a, b) => (b.posted_at || "").localeCompare(a.posted_at || ""),
+      company: (a, b) => a.company.localeCompare(b.company) || a.title.localeCompare(b.title)
+    }[state.sort];
+    return list.slice().sort(by);
+  }
+
+  function jobHTML(j) {
+    const st = statusOf(j);
+    const isNew = data.new_today > 0 && j.first_seen === newestSeen;
+    const tags = [j.level !== "Unspecified" ? `<span class="tag lvl">${esc(j.level)}</span>` : "", ...j.stack.map(s => `<span class="tag">${esc(s)}</span>`)].join("");
+    const btn = (k, label) => `<button class="act ${st === k ? "on" : ""}" data-id="${esc(j.id)}" data-act="${k}">${label}</button>`;
+    return `<div class="job ${st}">
+      <div>
+        <a class="title" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>${isNew ? '<span class="badge">NEW</span>' : ""}
+        <div class="meta"><span class="co">${esc(j.company)}</span><span>${esc(j.location)}</span>
+          <span>posted ${ago(j.posted_at)}</span>${j.salary ? `<span>${esc(j.salary)}</span>` : ""}<span>${esc(j.ats)}</span></div>
+        <div class="tags">${tags}</div>
+      </div>
+      <div class="actions">${btn("saved", "Save")}${btn("applied", "Applied")}${btn("hidden", "Hide")}
+        <button class="act" data-company="${esc(j.company)}" title="Hide every role from this company">${saved.mutedCompanies.includes(j.company) ? "Unmute co." : "Mute co."}</button></div>
+    </div>`;
+  }
+
+  function render() {
+    const counts = { inbox: 0, saved: 0, applied: 0, hidden: 0 };
+    data.jobs.forEach(j => counts[statusOf(j) || "inbox"]++);
+    $("tabs").innerHTML = TABS.map(([k, l]) =>
+      `<button class="tab" role="tab" data-tab="${k}" aria-selected="${state.tab === k}">${l}<small>${counts[k]}</small></button>`).join("");
+    $("s-saved").textContent = counts.saved;
+    $("s-applied").textContent = counts.applied;
+
+    const list = sorted(data.jobs.filter(matches));
+    $("count").textContent = `${list.length.toLocaleString()} role${list.length === 1 ? "" : "s"}`;
+    $("list").innerHTML = list.length
+      ? list.slice(0, state.shown).map(jobHTML).join("")
+      : `<div class="empty">${state.tab === "inbox" ? "Nothing matches these filters. Try widening the date range." : "Nothing here yet."}</div>`;
+    $("more").hidden = list.length <= state.shown;
+    $("more").textContent = `Show more (${(list.length - state.shown).toLocaleString()} left)`;
+  }
+
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-tab],[data-act],[data-company]");
+    if (!t) return;
+    if (t.dataset.tab) { state.tab = t.dataset.tab; state.shown = PAGE; }
+    else if (t.dataset.act) {
+      const id = t.dataset.id;
+      saved.status[id] === t.dataset.act ? delete saved.status[id] : (saved.status[id] = t.dataset.act);
+      persist();
+    } else if (t.dataset.company !== undefined) {
+      const c = t.dataset.company, m = saved.mutedCompanies;
+      m.includes(c) ? m.splice(m.indexOf(c), 1) : m.push(c);
+      persist();
+    }
+    render();
+  });
+
+  $("q").oninput = (e) => { state.q = e.target.value.trim().toLowerCase(); state.shown = PAGE; render(); };
+  $("age").onchange = (e) => { state.age = +e.target.value; state.shown = PAGE; render(); };
+  $("src").onchange = (e) => { state.src = e.target.value; state.shown = PAGE; render(); };
+  $("sort").onchange = (e) => { state.sort = e.target.value; render(); };
+  $("more").onclick = () => { state.shown += PAGE; render(); };
+  $("reset").onclick = () => {
+    state.q = ""; $("q").value = ""; state.src = ""; $("src").value = "";
+    state.age = 0; $("age").value = "0";
+    [state.place, state.level, state.stack].forEach(s => s.clear());
+    document.querySelectorAll(".chip[aria-pressed]").forEach(b => b.setAttribute("aria-pressed", "false"));
+    state.shown = PAGE; render();
+  };
+  $("export").onclick = () => {
+    const blob = new Blob([JSON.stringify(saved, null, 2)], { type: "application/json" });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "job-radar-statuses.json" });
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+  $("import").onclick = () => $("importFile").click();
+  $("importFile").onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const incoming = JSON.parse(await f.text());
+      saved.status = { ...saved.status, ...(incoming.status || {}) };
+      saved.mutedCompanies = [...new Set([...saved.mutedCompanies, ...(incoming.mutedCompanies || [])])];
+      persist(); render();
+    } catch { alert("That file isn't a Job Radar export."); }
+  };
+
+  function boot(payload) {
+    data = payload;
+    newestSeen = data.jobs.reduce((m, j) => (j.first_seen > m ? j.first_seen : m), "");
+    $("s-total").textContent = data.total.toLocaleString();
+    $("s-new").textContent = (data.new_today || 0).toLocaleString();
+    const when = new Date(data.generated_at);
+    $("updated").textContent = "Updated " + when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    $("foot-src").textContent = Object.entries(data.counts || {}).map(([k, v]) => `${k} ${v.toLocaleString()}`).join(" · ");
+    const sources = [...new Set(data.jobs.map(j => j.ats))].sort();
+    $("src").insertAdjacentHTML("beforeend", sources.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join(""));
+    const stacks = [...new Set(data.jobs.flatMap(j => j.stack))].sort();
+    chips("row-place", PLACES, state.place);
+    chips("row-level", LEVELS.map(l => [l, l]), state.level);
+    chips("row-stack", stacks.map(s => [s, s]), state.stack);
+    render();
+  }
+
+  if (window.JOB_RADAR_DATA) boot(window.JOB_RADAR_DATA);
+  else fetch("data/jobs.json", { cache: "no-store" })
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(boot)
+    .catch(() => {
+      $("updated").textContent = "No data yet";
+      $("list").innerHTML = '<div class="empty">The feed hasn\'t been built yet. Run the “Job Radar” workflow in the Actions tab.</div>';
+    });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+name: Job Radar
+
+# Builds the personal job dashboard once a day:
+#   1. pulls the hosted Greenhouse / Lever / Ashby slices of the ats-scrapers dataset
+#   2. keeps roles matching dashboard/config.json
+#   3. publishes dashboard/site (page + data/jobs.json) to GitHub Pages
+#
+# One-time setup: Settings → Pages → Build and deployment → Source: "GitHub Actions".
+
+on:
+  schedule:
+    - cron: "17 1 * * *" # 06:47 IST daily
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "dashboard/**"
+      - ".github/workflows/job-radar.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: job-radar
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install httpx pyarrow
+
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Build jobs feed
+        run: >
+          python dashboard/build_jobs.py
+          --previous "${{ steps.pages.outputs.base_url }}/data/jobs.json"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
