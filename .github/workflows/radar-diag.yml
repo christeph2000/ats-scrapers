@@ -1,0 +1,14 @@
+name: radar-diag
+on:
+  push:
+    branches: [radar-diag]
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install httpx pyarrow
+      - run: python .github/diag/diag.py https://christeph2000.github.io/ats-scrapers/data/jobs.json
