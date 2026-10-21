@@ -2,7 +2,41 @@
   "sources": [
     "greenhouse",
     "lever",
-    "ashby"
+    "ashby",
+    "workday",
+    "successfactors",
+    "smartrecruiters",
+    "oracle",
+    "icims",
+    "phenom",
+    "eightfold",
+    "avature",
+    "cornerstone",
+    "jobvite",
+    "taleo",
+    "darwinbox",
+    "keka",
+    "workable",
+    "recruitee",
+    "breezy",
+    "teamtailor",
+    "personio",
+    "join_com",
+    "pinpoint",
+    "rippling",
+    "gem",
+    "amazon",
+    "google",
+    "apple",
+    "uber",
+    "tiktok",
+    "bytedance",
+    "meta",
+    "ycombinator",
+    "wellfound",
+    "builtin",
+    "weworkremotely",
+    "welcometothejungle"
   ],
   "title_include": [
     "software engineer",
@@ -77,45 +111,7 @@
     "bangalore"
   ],
   "include_remote": true,
-  "remote_ok_terms": [
-    "anywhere",
-    "worldwide",
-    "global",
-    "apac",
-    "asia"
-  ],
-  "remote_block_terms": [
-    "us",
-    "usa",
-    "u.s.",
-    "united states",
-    "canada",
-    "uk",
-    "united kingdom",
-    "europe",
-    "emea",
-    "eu",
-    "germany",
-    "france",
-    "spain",
-    "poland",
-    "latam",
-    "brazil",
-    "mexico",
-    "americas",
-    "north america",
-    "australia",
-    "new zealand",
-    "japan",
-    "singapore",
-    "philippines",
-    "israel",
-    "netherlands",
-    "ireland",
-    "portugal",
-    "argentina",
-    "colombia"
-  ],
+  "include_abroad_with_support": true,
   "stack_tags": {
     "Java": [
       "java",
@@ -177,16 +173,28 @@
     ]
   },
   "target_companies": [
-    "Southwest Airlines", "Barclays", "Optum", "Swiggy", "Zansar", "Teradata", "Adjoe",
-    "ElevenLabs", "Texas Instruments", "Everpure", "ARQ", "UiPath", "Tesco", "Commure",
-    "NetApp", "Conde Nast", "Condé Nast"
+    "Southwest Airlines",
+    "Barclays",
+    "Optum",
+    "Swiggy",
+    "Zansar",
+    "Teradata",
+    "Adjoe",
+    "ElevenLabs",
+    "Texas Instruments",
+    "Everpure",
+    "ARQ",
+    "UiPath",
+    "Tesco",
+    "Commure",
+    "NetApp",
+    "Conde Nast",
+    "Condé Nast"
   ],
-
   "size_buckets": {
     "Startup": 25,
     "Mid-size": 250
   },
-
   "max_age_days": 60,
-  "max_jobs": 6000
+  "max_jobs": 12000
 }
