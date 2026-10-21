@@ -9,7 +9,9 @@ name: Job Radar
 
 on:
   schedule:
-    - cron: "17 1 * * *" # 06:47 IST daily
+    # The hosted dataset is rebuilt once a day around 20:00 IST (14:30 UTC).
+    - cron: "7 16 * * *" # 21:37 IST: pick up that day's snapshot
+    - cron: "17 1 * * *" # 06:47 IST: catch-up in case the snapshot ran late
   workflow_dispatch:
   push:
     branches: [main]

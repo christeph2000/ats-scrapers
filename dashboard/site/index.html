@@ -9,26 +9,26 @@
 :root {
   --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1f1c; --muted: #6b6f68; --line: #e3e1da;
   --accent: #2f6f5e; --accent-soft: #e2efe9; --new: #b4521d; --new-soft: #fbe9dc;
-  --chip: #efeee8; --danger: #9a3b3b; --shadow: 0 1px 2px rgba(0,0,0,.04);
+  --star: #b8860b; --chip: #efeee8; --shadow: 0 1px 2px rgba(0,0,0,.04); --row-hover: #faf9f6;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #141614; --panel: #1c1f1c; --ink: #e8e8e3; --muted: #9a9e96; --line: #2c302c;
     --accent: #7cc4ad; --accent-soft: #1f3a32; --new: #f0a273; --new-soft: #3d2618;
-    --chip: #262a26; --danger: #e08a8a; --shadow: none;
+    --star: #e5c15c; --chip: #262a26; --shadow: none; --row-hover: #222622;
   }
 }
 :root[data-theme="dark"] {
   --bg: #141614; --panel: #1c1f1c; --ink: #e8e8e3; --muted: #9a9e96; --line: #2c302c;
   --accent: #7cc4ad; --accent-soft: #1f3a32; --new: #f0a273; --new-soft: #3d2618;
-  --chip: #262a26; --danger: #e08a8a; --shadow: none;
+  --star: #e5c15c; --chip: #262a26; --shadow: none; --row-hover: #222622;
 }
 * { box-sizing: border-box; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
-.wrap { max-width: 1080px; margin: 0 auto; padding: 20px 16px 60px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
 header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
 .sub { color: var(--muted); font-size: 13px; }
@@ -37,25 +37,32 @@ h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
 .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
 .stat span { color: var(--muted); font-size: 12px; }
 .stat.new b { color: var(--new); }
+.notice { background: var(--new-soft); color: var(--ink); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin: -4px 0 14px; }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 12px; overflow-x: auto; }
 .tab { background: none; border: 0; padding: 8px 12px; color: var(--muted); font: inherit; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
 .tab[aria-selected="true"] { color: var(--ink); border-color: var(--accent); font-weight: 600; }
 .tab small { color: var(--muted); font-weight: 400; margin-left: 4px; }
-.controls { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; margin-bottom: 10px; }
+.controls { display: grid; grid-template-columns: minmax(180px, 1fr) repeat(4, auto) auto; gap: 8px; margin-bottom: 10px; align-items: center; }
 input[type=search], select {
-  font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
   border-radius: 8px; padding: 8px 10px; min-width: 0;
 }
-input[type=search]:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+input[type=search]:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.seg { justify-self: start; display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button { font: inherit; font-size: 13px; border: 0; background: none; color: var(--muted); padding: 8px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .chiprow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
-.chiprow .lbl { color: var(--muted); font-size: 12px; width: 52px; flex-shrink: 0; }
+.chiprow .lbl { color: var(--muted); font-size: 12px; width: 64px; flex-shrink: 0; }
 .chip {
   font: inherit; font-size: 13px; padding: 3px 10px; border-radius: 999px; cursor: pointer;
-  background: var(--chip); color: var(--ink); border: 1px solid transparent;
+  background: var(--chip); color: var(--ink); border: 1px solid transparent; white-space: nowrap;
 }
 .chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .chip.ghost { background: none; color: var(--muted); }
+.chip .hint { color: var(--muted); font-size: 11.5px; margin-left: 3px; }
 .resultbar { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 13px; margin: 14px 0 6px; gap: 8px; flex-wrap: wrap; }
+
+/* cards */
 .list { display: flex; flex-direction: column; gap: 6px; }
 .job {
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
@@ -65,31 +72,55 @@ input[type=search]:focus, select:focus { outline: 2px solid var(--accent); outli
 .job.saved { border-left: 3px solid var(--new); }
 .title { font-weight: 600; color: var(--ink); text-decoration: none; }
 .title:hover { text-decoration: underline; }
-.meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 2px; }
 .meta .co { color: var(--ink); font-weight: 500; }
-.tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.star { color: var(--star); margin-right: 3px; }
+.dates { font-variant-numeric: tabular-nums; }
+.dates b { font-weight: 500; color: var(--ink); }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .tag { font-size: 11.5px; padding: 1px 7px; border-radius: 6px; background: var(--chip); color: var(--muted); }
 .tag.lvl { background: var(--accent-soft); color: var(--accent); }
 .badge { font-size: 11px; font-weight: 700; color: var(--new); background: var(--new-soft); padding: 1px 6px; border-radius: 5px; margin-left: 6px; vertical-align: 1px; }
 .actions { display: flex; gap: 4px; align-items: start; }
 .act {
   font: inherit; font-size: 12.5px; padding: 4px 9px; border-radius: 7px; cursor: pointer;
-  background: none; border: 1px solid var(--line); color: var(--muted);
+  background: none; border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
 }
 .act:hover { color: var(--ink); border-color: var(--muted); }
 .act.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .more { display: block; margin: 14px auto 0; }
 .empty { text-align: center; color: var(--muted); padding: 40px 10px; background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; }
+
+/* table */
+.tablewrap { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; box-shadow: var(--shadow); }
+table { border-collapse: collapse; width: 100%; min-width: 820px; font-size: 13.5px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; position: sticky; top: 0; background: var(--panel); }
+th button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+th button[aria-sort]::after { content: " ↓"; }
+th button[aria-sort="ascending"]::after { content: " ↑"; }
+th button:not([aria-sort]) { opacity: .85; }
+tbody tr:hover { background: var(--row-hover); }
+tbody tr:last-child td { border-bottom: 0; }
+td.nowrap { white-space: nowrap; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td .title { font-weight: 500; }
+tr.applied td:first-child { box-shadow: inset 3px 0 var(--accent); }
+tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
+.muted { color: var(--muted); }
+
 .foot { margin-top: 28px; color: var(--muted); font-size: 12.5px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .linkbtn { background: none; border: 0; color: var(--accent); cursor: pointer; font: inherit; padding: 0; text-decoration: underline; }
-@media (max-width: 640px) {
-  .stats { grid-template-columns: repeat(2, 1fr); }
+
+@media (max-width: 900px) {
   .controls { grid-template-columns: 1fr 1fr; }
   .controls input[type=search] { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
   .job { grid-template-columns: 1fr; }
   .chiprow { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -16px; padding-right: 16px; }
   .chiprow .lbl { width: auto; margin-right: 2px; }
-  .chip { white-space: nowrap; }
 }
 </style>
 </head>
@@ -102,36 +133,51 @@ input[type=search]:focus, select:focus { outline: 2px solid var(--accent); outli
 
   <div class="stats">
     <div class="stat"><b id="s-total">–</b><span>matching roles</span></div>
-    <div class="stat new"><b id="s-new">–</b><span>new in last 24h</span></div>
+    <div class="stat new"><b id="s-new">–</b><span>added in latest run</span></div>
     <div class="stat"><b id="s-saved">–</b><span>saved</span></div>
     <div class="stat"><b id="s-applied">–</b><span>applied</span></div>
   </div>
+  <div class="notice" id="notice" hidden></div>
 
   <div class="tabs" role="tablist" id="tabs"></div>
 
   <div class="controls">
     <input type="search" id="q" placeholder="Search title or company…" aria-label="Search">
-    <select id="age" aria-label="Posted within">
-      <option value="0">Any date</option>
-      <option value="1">Seen in last 24h</option>
+    <select id="posted" aria-label="Posted within">
+      <option value="0">Posted: any time</option>
+      <option value="3">Posted ≤ 3 days</option>
       <option value="7" selected>Posted ≤ 7 days</option>
       <option value="14">Posted ≤ 14 days</option>
       <option value="30">Posted ≤ 30 days</option>
     </select>
+    <select id="added" aria-label="Added within">
+      <option value="0" selected>Added: any time</option>
+      <option value="latest">Added in latest run</option>
+      <option value="3">Added ≤ 3 days</option>
+      <option value="7">Added ≤ 7 days</option>
+      <option value="14">Added ≤ 14 days</option>
+    </select>
     <select id="src" aria-label="Source"><option value="">All sources</option></select>
     <select id="sort" aria-label="Sort">
-      <option value="seen">Newest first</option>
+      <option value="added">Recently added</option>
       <option value="posted">Recently posted</option>
       <option value="company">Company A–Z</option>
+      <option value="size">Smallest company first</option>
+      <option value="size-desc">Largest company first</option>
     </select>
+    <div class="seg" role="group" aria-label="View">
+      <button id="v-cards" aria-pressed="true">Cards</button>
+      <button id="v-table" aria-pressed="false">Table</button>
+    </div>
   </div>
 
   <div class="chiprow" id="row-place"><span class="lbl">Where</span></div>
+  <div class="chiprow" id="row-company"><span class="lbl">Company</span></div>
   <div class="chiprow" id="row-level"><span class="lbl">Level</span></div>
   <div class="chiprow" id="row-stack"><span class="lbl">Stack</span></div>
 
   <div class="resultbar"><span id="count"></span><button class="chip ghost" id="reset">Clear filters</button></div>
-  <div class="list" id="list"></div>
+  <div id="results"></div>
   <button class="act more" id="more" hidden>Show more</button>
 
   <div class="foot">
@@ -147,89 +193,140 @@ input[type=search]:focus, select:focus { outline: 2px solid var(--accent); outli
   const PAGE = 60;
   const PLACES = [["home", "Bengaluru"], ["india", "Other India"], ["remote", "Remote"]];
   const LEVELS = ["Junior", "Mid", "Senior", "Staff+", "Unspecified"];
+  const SIZES = ["Startup", "Mid-size", "Large"];
   const TABS = [["inbox", "Inbox"], ["saved", "Saved"], ["applied", "Applied"], ["hidden", "Hidden"]];
-  const KEY = "jobradar.v1";
+  const KEY = "jobradar.v1", PREF = "jobradar.prefs.v1";
+  const SORTS = { added: ["added", -1], posted: ["posted", -1], company: ["company", 1], size: ["size", 1], "size-desc": ["size", -1] };
 
-  const store = {
-    load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } },
-    save(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} }
-  };
-  let saved = store.load();
-  saved.status ||= {};        // id -> saved | applied | hidden
+  const read = (k) => { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } };
+  const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  const saved = read(KEY);
+  saved.status ||= {};
   saved.mutedCompanies ||= [];
+  const prefs = read(PREF);
 
-  const state = { tab: "inbox", q: "", age: 7, src: "", sort: "seen",
-                  place: new Set(), level: new Set(), stack: new Set(), shown: PAGE };
-  let data = { jobs: [] };
-  let newestSeen = "";
+  const state = {
+    tab: "inbox", q: "", posted: 7, added: "0", src: "", view: prefs.view === "table" ? "table" : "cards",
+    sortKey: "added", sortDir: -1, targets: false,
+    place: new Set(), level: new Set(), stack: new Set(), size: new Set(), shown: PAGE
+  };
+  let data = { jobs: [] }, newestSeen = "", baseline = "", hasNew = false;
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  function daysAgo(iso) {
-    if (!iso) return null;
-    return Math.floor((Date.now() - new Date(iso + "T00:00:00Z").getTime()) / 864e5);
-  }
-  function ago(iso) {
+  const daysAgo = (iso) => iso ? Math.floor((Date.now() - Date.parse(iso + "T00:00:00Z")) / 864e5) : null;
+  const short = (iso) => iso ? new Date(iso + "T00:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" }) : "–";
+  function rel(iso) {
     const d = daysAgo(iso);
-    if (d === null) return "date unknown";
+    if (d === null) return "unknown";
     return d <= 0 ? "today" : d === 1 ? "yesterday" : d + "d ago";
   }
-  const persist = () => store.save(saved);
+  const isBaseline = (j) => j.first_seen <= baseline;
+  const addedText = (j) => isBaseline(j) ? `≤ ${short(baseline)}` : short(j.first_seen);
+  const addedTitle = (j) => isBaseline(j)
+    ? `Already open when tracking started on ${short(baseline)}; the exact date it appeared is unknown.`
+    : `First appeared in the run on ${short(j.first_seen)}.`;
+  const sizeText = (j) => `${j.size} · ${j.open_roles.toLocaleString()} open role${j.open_roles === 1 ? "" : "s"}`;
+  const persist = () => write(KEY, saved);
   const statusOf = (j) => saved.status[j.id] || (saved.mutedCompanies.includes(j.company) ? "hidden" : "");
 
-  function chips(rowId, items, set) {
+  function chips(rowId, items, onToggle, isOn) {
     const row = $(rowId);
-    items.forEach(([val, label]) => {
+    items.forEach(([val, label, hint]) => {
       const b = document.createElement("button");
-      b.className = "chip"; b.textContent = label; b.setAttribute("aria-pressed", "false");
-      b.onclick = () => { set.has(val) ? set.delete(val) : set.add(val);
-        b.setAttribute("aria-pressed", set.has(val)); state.shown = PAGE; render(); };
+      b.className = "chip"; b.dataset.chip = rowId;
+      b.innerHTML = esc(label) + (hint ? `<span class="hint">${esc(hint)}</span>` : "");
+      b.setAttribute("aria-pressed", "false");
+      b.onclick = () => { onToggle(val); b.setAttribute("aria-pressed", isOn(val)); state.shown = PAGE; render(); };
       row.appendChild(b);
     });
   }
+  const toggler = (set) => [(v) => set.has(v) ? set.delete(v) : set.add(v), (v) => set.has(v)];
 
   function matches(j) {
     const st = statusOf(j);
     if (state.tab === "inbox" ? st !== "" : st !== state.tab) return false;
     if (state.q) {
-      const hay = (j.title + " " + j.company + " " + (j.department || "")).toLowerCase();
+      const hay = (j.title + " " + j.company + " " + (j.department || "") + " " + j.location).toLowerCase();
       if (!state.q.split(/\s+/).every(w => hay.includes(w))) return false;
     }
     if (state.src && j.ats !== state.src) return false;
+    if (state.targets && !j.target) return false;
     if (state.place.size && !state.place.has(j.place)) return false;
     if (state.level.size && !state.level.has(j.level)) return false;
+    if (state.size.size && !state.size.has(j.size)) return false;
     if (state.stack.size && !j.stack.some(s => state.stack.has(s))) return false;
-    if (state.tab === "inbox" && state.age) {
-      if (state.age === 1) { if (j.first_seen !== newestSeen) return false; }
-      else { const d = daysAgo(j.posted_at); if (d !== null && d > state.age) return false; }
+    if (state.posted) { const d = daysAgo(j.posted_at); if (d !== null && d > state.posted) return false; }
+    if (state.added !== "0") {
+      if (isBaseline(j)) return false;
+      if (state.added === "latest" ? j.first_seen !== newestSeen : daysAgo(j.first_seen) > +state.added) return false;
     }
     return true;
   }
 
   function sorted(list) {
-    const by = {
-      seen: (a, b) => (b.first_seen || "").localeCompare(a.first_seen || "") || (b.posted_at || "").localeCompare(a.posted_at || ""),
-      posted: (a, b) => (b.posted_at || "").localeCompare(a.posted_at || ""),
-      company: (a, b) => a.company.localeCompare(b.company) || a.title.localeCompare(b.title)
-    }[state.sort];
-    return list.slice().sort(by);
+    const val = {
+      added: (j) => j.first_seen || "", posted: (j) => j.posted_at || "", company: (j) => j.company.toLowerCase(),
+      title: (j) => j.title.toLowerCase(), location: (j) => j.location.toLowerCase(), size: (j) => j.open_roles
+    }[state.sortKey];
+    const dir = state.sortDir;
+    return list.slice().sort((a, b) => {
+      const x = val(a), y = val(b);
+      const c = x < y ? -1 : x > y ? 1 : 0;
+      return c * dir || (b.posted_at || "").localeCompare(a.posted_at || "");
+    });
   }
 
-  function jobHTML(j) {
+  const actBtns = (j, st) => ["saved:Save", "applied:Applied", "hidden:Hide"].map(s => {
+    const [k, l] = s.split(":");
+    return `<button class="act ${st === k ? "on" : ""}" data-id="${esc(j.id)}" data-act="${k}">${l}</button>`;
+  }).join("");
+  const newBadge = (j) => hasNew && j.first_seen === newestSeen ? '<span class="badge">NEW</span>' : "";
+  const company = (j) => `${j.target ? '<span class="star" title="On your target list">★</span>' : ""}${esc(j.company)}`;
+
+  function cardHTML(j) {
     const st = statusOf(j);
-    const isNew = data.new_today > 0 && j.first_seen === newestSeen;
-    const tags = [j.level !== "Unspecified" ? `<span class="tag lvl">${esc(j.level)}</span>` : "", ...j.stack.map(s => `<span class="tag">${esc(s)}</span>`)].join("");
-    const btn = (k, label) => `<button class="act ${st === k ? "on" : ""}" data-id="${esc(j.id)}" data-act="${k}">${label}</button>`;
+    const tags = [j.level !== "Unspecified" ? `<span class="tag lvl">${esc(j.level)}</span>` : "",
+      ...j.stack.map(s => `<span class="tag">${esc(s)}</span>`)].join("");
     return `<div class="job ${st}">
       <div>
-        <a class="title" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>${isNew ? '<span class="badge">NEW</span>' : ""}
-        <div class="meta"><span class="co">${esc(j.company)}</span><span>${esc(j.location)}</span>
-          <span>posted ${ago(j.posted_at)}</span>${j.salary ? `<span>${esc(j.salary)}</span>` : ""}<span>${esc(j.ats)}</span></div>
+        <a class="title" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>${newBadge(j)}
+        <div class="meta"><span class="co">${company(j)}</span><span title="Hiring volume across all locations">${esc(sizeText(j))}</span><span>${esc(j.location)}</span>${j.salary ? `<span>${esc(j.salary)}</span>` : ""}</div>
+        <div class="meta dates"><span title="${esc(j.posted_at || "")}">Posted <b>${short(j.posted_at)}</b> (${rel(j.posted_at)})</span>
+          <span title="${esc(addedTitle(j))}">Added <b>${addedText(j)}</b></span><span>${esc(j.ats)}</span></div>
         <div class="tags">${tags}</div>
       </div>
-      <div class="actions">${btn("saved", "Save")}${btn("applied", "Applied")}${btn("hidden", "Hide")}
+      <div class="actions">${actBtns(j, st)}
         <button class="act" data-company="${esc(j.company)}" title="Hide every role from this company">${saved.mutedCompanies.includes(j.company) ? "Unmute co." : "Mute co."}</button></div>
     </div>`;
+  }
+
+  function tableHTML(rows) {
+    const col = (key, label) => {
+      const on = state.sortKey === key;
+      return `<th><button data-sort="${key}" ${on ? `aria-sort="${state.sortDir > 0 ? "ascending" : "descending"}"` : ""}>${label}</button></th>`;
+    };
+    const body = rows.map(j => {
+      const st = statusOf(j);
+      return `<tr class="${st}">
+        <td>${company(j)}</td>
+        <td><a class="title" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>${newBadge(j)}
+          ${j.stack.length ? `<div class="muted" style="font-size:12px">${esc(j.stack.join(" · "))}</div>` : ""}</td>
+        <td>${esc(j.location)}</td>
+        <td class="nowrap" title="${esc(sizeText(j))}">${esc(j.size)} <span class="muted">${j.open_roles.toLocaleString()}</span></td>
+        <td class="num" title="${esc(rel(j.posted_at))}">${short(j.posted_at)}</td>
+        <td class="num" title="${esc(addedTitle(j))}">${addedText(j)}</td>
+        <td class="nowrap"><div class="actions">${actBtns(j, st)}</div></td>
+      </tr>`;
+    }).join("");
+    return `<div class="tablewrap"><table>
+      <thead><tr>${col("company", "Company")}${col("title", "Role")}${col("location", "Location")}${col("size", "Size")}${col("posted", "Posted")}${col("added", "Added")}<th>Status</th></tr></thead>
+      <tbody>${body}</tbody></table></div>`;
+  }
+
+  function syncSortSelect() {
+    const match = Object.entries(SORTS).find(([, [k, d]]) => k === state.sortKey && d === state.sortDir);
+    $("sort").value = match ? match[0] : "";
   }
 
   function render() {
@@ -239,21 +336,30 @@ input[type=search]:focus, select:focus { outline: 2px solid var(--accent); outli
       `<button class="tab" role="tab" data-tab="${k}" aria-selected="${state.tab === k}">${l}<small>${counts[k]}</small></button>`).join("");
     $("s-saved").textContent = counts.saved;
     $("s-applied").textContent = counts.applied;
+    $("v-cards").setAttribute("aria-pressed", state.view === "cards");
+    $("v-table").setAttribute("aria-pressed", state.view === "table");
+    syncSortSelect();
 
     const list = sorted(data.jobs.filter(matches));
+    const page = list.slice(0, state.shown);
     $("count").textContent = `${list.length.toLocaleString()} role${list.length === 1 ? "" : "s"}`;
-    $("list").innerHTML = list.length
-      ? list.slice(0, state.shown).map(jobHTML).join("")
-      : `<div class="empty">${state.tab === "inbox" ? "Nothing matches these filters. Try widening the date range." : "Nothing here yet."}</div>`;
+    let empty = state.tab === "inbox" ? "Nothing matches these filters. Try widening the date range." : "Nothing here yet.";
+    if (state.added !== "0" && !hasNew) empty = `Tracking started ${short(baseline)}. Jobs that appear after that will show up here from the next run.`;
+    $("results").innerHTML = !list.length ? `<div class="empty">${esc(empty)}</div>`
+      : state.view === "table" ? tableHTML(page) : `<div class="list">${page.map(cardHTML).join("")}</div>`;
     $("more").hidden = list.length <= state.shown;
     $("more").textContent = `Show more (${(list.length - state.shown).toLocaleString()} left)`;
   }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-tab],[data-act],[data-company]");
+    const t = e.target.closest("[data-tab],[data-act],[data-company],[data-sort]");
     if (!t) return;
     if (t.dataset.tab) { state.tab = t.dataset.tab; state.shown = PAGE; }
-    else if (t.dataset.act) {
+    else if (t.dataset.sort) {
+      const k = t.dataset.sort;
+      if (state.sortKey === k) state.sortDir *= -1;
+      else { state.sortKey = k; state.sortDir = ["added", "posted"].includes(k) ? -1 : 1; }
+    } else if (t.dataset.act) {
       const id = t.dataset.id;
       saved.status[id] === t.dataset.act ? delete saved.status[id] : (saved.status[id] = t.dataset.act);
       persist();
@@ -265,17 +371,22 @@ input[type=search]:focus, select:focus { outline: 2px solid var(--accent); outli
     render();
   });
 
-  $("q").oninput = (e) => { state.q = e.target.value.trim().toLowerCase(); state.shown = PAGE; render(); };
-  $("age").onchange = (e) => { state.age = +e.target.value; state.shown = PAGE; render(); };
-  $("src").onchange = (e) => { state.src = e.target.value; state.shown = PAGE; render(); };
-  $("sort").onchange = (e) => { state.sort = e.target.value; render(); };
+  const on = (id, fn) => { $(id).onchange = $(id).oninput = (e) => { fn(e.target.value); state.shown = PAGE; render(); }; };
+  on("q", (v) => state.q = v.trim().toLowerCase());
+  on("posted", (v) => state.posted = +v);
+  on("added", (v) => state.added = v);
+  on("src", (v) => state.src = v);
+  $("sort").onchange = (e) => { [state.sortKey, state.sortDir] = SORTS[e.target.value]; render(); };
+  const setView = (v) => { state.view = v; prefs.view = v; write(PREF, prefs); render(); };
+  $("v-cards").onclick = () => setView("cards");
+  $("v-table").onclick = () => setView("table");
   $("more").onclick = () => { state.shown += PAGE; render(); };
   $("reset").onclick = () => {
-    state.q = ""; $("q").value = ""; state.src = ""; $("src").value = "";
-    state.age = 0; $("age").value = "0";
-    [state.place, state.level, state.stack].forEach(s => s.clear());
+    Object.assign(state, { q: "", src: "", posted: 0, added: "0", targets: false, shown: PAGE });
+    $("q").value = ""; $("src").value = ""; $("posted").value = "0"; $("added").value = "0";
+    [state.place, state.level, state.stack, state.size].forEach(s => s.clear());
     document.querySelectorAll(".chip[aria-pressed]").forEach(b => b.setAttribute("aria-pressed", "false"));
-    state.shown = PAGE; render();
+    render();
   };
   $("export").onclick = () => {
     const blob = new Blob([JSON.stringify(saved, null, 2)], { type: "application/json" });
@@ -290,23 +401,37 @@ input[type=search]:focus, select:focus { outline: 2px solid var(--accent); outli
       saved.status = { ...saved.status, ...(incoming.status || {}) };
       saved.mutedCompanies = [...new Set([...saved.mutedCompanies, ...(incoming.mutedCompanies || [])])];
       persist(); render();
-    } catch { alert("That file isn't a Job Radar export."); }
+    } catch { $("foot-src").textContent = "That file isn't a Job Radar export."; }
   };
 
   function boot(payload) {
     data = payload;
+    data.jobs.forEach(j => { j.open_roles ??= 0; j.size ??= "Unknown"; j.target ??= false; });
     newestSeen = data.jobs.reduce((m, j) => (j.first_seen > m ? j.first_seen : m), "");
+    baseline = data.tracking_since || data.jobs.reduce((m, j) => (!m || j.first_seen < m ? j.first_seen : m), "");
+    hasNew = newestSeen > baseline;
     $("s-total").textContent = data.total.toLocaleString();
-    $("s-new").textContent = (data.new_today || 0).toLocaleString();
+    $("s-new").textContent = hasNew ? (data.new_today || 0).toLocaleString() : "–";
     const when = new Date(data.generated_at);
-    $("updated").textContent = "Updated " + when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    $("updated").textContent = "Updated " + when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+      + (data.snapshot_at ? " · data from " + new Date(data.snapshot_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "");
+    if (!hasNew) {
+      $("notice").hidden = false;
+      $("notice").textContent = `Tracking started ${short(baseline)}. Jobs already open then show “Added ≤ ${short(baseline)}”; from the next run, new jobs get their real added date and a NEW badge.`;
+    }
     $("foot-src").textContent = Object.entries(data.counts || {}).map(([k, v]) => `${k} ${v.toLocaleString()}`).join(" · ");
     const sources = [...new Set(data.jobs.map(j => j.ats))].sort();
     $("src").insertAdjacentHTML("beforeend", sources.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join(""));
-    const stacks = [...new Set(data.jobs.flatMap(j => j.stack))].sort();
-    chips("row-place", PLACES, state.place);
-    chips("row-level", LEVELS.map(l => [l, l]), state.level);
-    chips("row-stack", stacks.map(s => [s, s]), state.stack);
+
+    const b = data.size_buckets || { Startup: 25, "Mid-size": 250 };
+    const sizeHint = { Startup: `<${b.Startup}`, "Mid-size": `<${b["Mid-size"]}`, Large: `${b["Mid-size"]}+` };
+    const targetCount = data.jobs.filter(j => j.target).length;
+    chips("row-place", PLACES, ...toggler(state.place));
+    chips("row-company", [["__t", "★ Targets", String(targetCount)]],
+      () => { state.targets = !state.targets; }, () => state.targets);
+    chips("row-company", SIZES.map(s => [s, s, sizeHint[s] + " roles"]), ...toggler(state.size));
+    chips("row-level", LEVELS.map(l => [l, l]), ...toggler(state.level));
+    chips("row-stack", [...new Set(data.jobs.flatMap(j => j.stack))].sort().map(s => [s, s]), ...toggler(state.stack));
     render();
   }
 
@@ -316,7 +441,7 @@ input[type=search]:focus, select:focus { outline: 2px solid var(--accent); outli
     .then(boot)
     .catch(() => {
       $("updated").textContent = "No data yet";
-      $("list").innerHTML = '<div class="empty">The feed hasn\'t been built yet. Run the “Job Radar” workflow in the Actions tab.</div>';
+      $("results").innerHTML = '<div class="empty">The feed hasn\'t been built yet. Run the “Job Radar” workflow in the Actions tab.</div>';
     });
 })();
 </script>

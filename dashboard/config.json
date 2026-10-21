@@ -176,6 +176,17 @@
       "agentic"
     ]
   },
+  "target_companies": [
+    "Southwest Airlines", "Barclays", "Optum", "Swiggy", "Zansar", "Teradata", "Adjoe",
+    "ElevenLabs", "Texas Instruments", "Everpure", "ARQ", "UiPath", "Tesco", "Commure",
+    "NetApp", "Conde Nast", "Condé Nast"
+  ],
+
+  "size_buckets": {
+    "Startup": 25,
+    "Mid-size": 250
+  },
+
   "max_age_days": 60,
   "max_jobs": 6000
 }
