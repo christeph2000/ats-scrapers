@@ -29,13 +29,33 @@ Edit `config.json` and push. The keys:
 | `india_terms`, `home_city_terms` | Locations kept, and which ones count as "Bengaluru". |
 | `include_remote`, `remote_ok_terms`, `remote_block_terms` | Keeps remote roles unless they are tied to another region, e.g. "Remote - US". |
 | `stack_tags` | Tags detected from the title and description. These become the Stack filter. |
+| `target_companies` | Companies marked ★ on the page, with a ★ Targets filter. Matches whole words, so "UiPath" also matches "UiPath India". |
+| `size_buckets` | Thresholds for the Company size filter (see below). |
 | `max_age_days`, `max_jobs` | Drops stale postings and caps the feed size. |
 
-## How "new" works
+## Dates: Posted vs Added
 
-Each run reads yesterday's published `jobs.json` and carries over the date
-each job was first seen. So **NEW** and *Seen in last 24h* mean new to you,
-not just recently posted.
+- **Posted** is the employer's own publish date from the ATS: Greenhouse
+  `first_published`, Lever `createdAt`, Ashby `publishedAt`. Reposted jobs
+  get a fresh date, so they can look new.
+- **Added** is the run in which the job first showed up in *your* feed. Each
+  run reads the previously published `jobs.json` and carries those dates
+  forward. Jobs that were already open on the first run show **≤ <start date>**,
+  because their real arrival date is unknown. **NEW** marks jobs added in
+  the latest run.
+- If the previous feed can't be read (anything other than "not published
+  yet"), the build fails rather than resetting every Added date.
+
+The hosted dataset is rebuilt about once a day (around 20:00 IST), so the
+workflow runs at 21:37 IST to pick it up, plus a 06:47 IST catch-up run.
+
+## Company size
+
+The dataset has no headcount, so size is approximated by **hiring volume**:
+how many roles the company has open across the downloaded sources, worldwide
+and in all functions. The default buckets are Startup (<25), Mid-size (<250)
+and Large (250+). It's a rough signal: a big company that only lists a few
+roles on Greenhouse will look small.
 
 ## Your statuses
 

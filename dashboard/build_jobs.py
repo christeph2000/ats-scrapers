@@ -11,7 +11,14 @@ Run locally:
     python dashboard/build_jobs.py
 
 The previous feed (``--previous``, a path or URL) is used to remember when each
-posting was first seen, so the dashboard can show "new since yesterday".
+posting was first seen, so the dashboard can show "new since yesterday". Jobs
+already present on the very first run are marked as part of the baseline
+(``tracking_since``) rather than pretending they were all added that day.
+
+Company size is not in the dataset, so it is approximated by hiring volume:
+the number of open roles the company has across the downloaded sources
+(all roles, worldwide, not only the matching ones). Thresholds live in
+``size_buckets`` in the config.
 """
 
 from __future__ import annotations
@@ -142,26 +149,39 @@ def iso_date(value: Any) -> str | None:
     return iso_date(dt)
 
 
-def load_previous(source: str | None) -> dict[str, str]:
-    """Map job id -> first_seen date from the previous feed, if reachable."""
+def load_previous(source: str | None) -> dict[str, Any] | None:
+    """Return the previous feed, or None when there is genuinely none yet.
+
+    A missing feed (404 / no file) means this is the first run. Any other
+    failure aborts the build: silently starting fresh would reset every
+    job's "added" date and flood the dashboard with false NEW badges.
+    """
     if not source:
-        return {}
-    try:
-        if source.startswith(("http://", "https://")):
-            resp = httpx.get(source, timeout=60, follow_redirects=True)
-            if resp.status_code != 200:
-                print(f"previous feed: HTTP {resp.status_code}, starting fresh", file=sys.stderr)
-                return {}
-            data = resp.json()
-        else:
-            path = Path(source)
-            if not path.exists():
-                return {}
-            data = json.loads(path.read_text())
-    except (httpx.HTTPError, ValueError) as exc:
-        print(f"previous feed unreadable ({exc}), starting fresh", file=sys.stderr)
-        return {}
-    return {j["id"]: j["first_seen"] for j in data.get("jobs", []) if j.get("first_seen")}
+        return None
+    if source.startswith(("http://", "https://")):
+        resp = httpx.get(source, timeout=60, follow_redirects=True)
+        if resp.status_code == 404:
+            print("previous feed: not published yet, starting baseline", file=sys.stderr)
+            return None
+        resp.raise_for_status()
+        data: dict[str, Any] = resp.json()
+        return data
+    path = Path(source)
+    if not path.exists():
+        return None
+    loaded: dict[str, Any] = json.loads(path.read_text())
+    return loaded
+
+
+def size_label(open_roles: int, buckets: dict[str, int]) -> str:
+    for label, upper in sorted(buckets.items(), key=lambda kv: kv[1]):
+        if open_roles < upper:
+            return label
+    return "Large"
+
+
+def company_key(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
 
 
 def download(url: str, dest: Path) -> None:
@@ -172,13 +192,18 @@ def download(url: str, dest: Path) -> None:
                 fh.write(chunk)
 
 
-def scan(path: Path, matcher: Matcher, cutoff: str) -> list[dict[str, Any]]:
+def scan(
+    path: Path, matcher: Matcher, cutoff: str, company_roles: dict[str, int]
+) -> list[dict[str, Any]]:
     pf = pq.ParquetFile(path)
     available = set(pf.schema_arrow.names)
     columns = [c for c in WANTED_COLUMNS if c in available]
     out: list[dict[str, Any]] = []
     for batch in pf.iter_batches(batch_size=20_000, columns=columns):
         for row in batch.to_pylist():
+            key = company_key(row.get("company") or "")
+            if key:
+                company_roles[key] = company_roles.get(key, 0) + 1
             title = (row.get("title") or "").strip()
             if not title or not matcher.title_ok(title):
                 continue
@@ -226,7 +251,21 @@ def main() -> int:
     matcher = Matcher(cfg)
     today = datetime.now(UTC).date()
     cutoff = (today - timedelta(days=int(cfg.get("max_age_days", 60)))).isoformat()
-    previous = load_previous(args.previous)
+    prev_feed = load_previous(args.previous)
+    previous: dict[str, str] = {
+        j["id"]: j["first_seen"] for j in (prev_feed or {}).get("jobs", []) if j.get("first_seen")
+    }
+    if prev_feed is None:
+        tracking_since = today.isoformat()
+    else:
+        tracking_since = prev_feed.get("tracking_since") or min(
+            previous.values(), default=today.isoformat()
+        )
+    buckets = {
+        k: int(v) for k, v in cfg.get("size_buckets", {"Startup": 25, "Mid-size": 250}).items()
+    }
+    targets = [company_key(t) for t in cfg.get("target_companies", []) if company_key(t)]
+    company_roles: dict[str, int] = {}
 
     snapshot_at: str | None = None
     manifest: dict[str, Any] = {}
@@ -251,7 +290,7 @@ def main() -> int:
                 path = Path(tmp) / f"{source}.parquet"
                 print(f"{source}: downloading {entry.get('parquet_size_bytes', 0) / 1e6:.0f} MB")
                 download(entry["parquet"], path)
-            found = scan(path, matcher, cutoff)
+            found = scan(path, matcher, cutoff, company_roles)
             counts[source] = len(found)
             print(f"{source}: {len(found)} matching jobs")
             for job in found:
@@ -261,6 +300,12 @@ def main() -> int:
 
     for job in jobs.values():
         job["first_seen"] = previous.get(job["id"], today.isoformat())
+        key = company_key(job["company"])
+        roles = company_roles.get(key, 0)
+        job["open_roles"] = roles
+        job["size"] = size_label(roles, buckets)
+        padded = f" {key} "
+        job["target"] = any(f" {t} " in padded for t in targets)
 
     ordered = sorted(
         jobs.values(),
@@ -273,9 +318,13 @@ def main() -> int:
     payload = {
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "snapshot_at": snapshot_at,
+        "tracking_since": tracking_since,
+        "size_buckets": buckets,
         "counts": counts,
         "total": len(ordered),
-        "new_today": sum(1 for j in ordered if j["first_seen"] == today.isoformat() and previous),
+        "new_today": sum(
+            1 for j in ordered if j["first_seen"] == today.isoformat() > tracking_since
+        ),
         "jobs": ordered,
     }
     out.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
