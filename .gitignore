@@ -128,3 +128,6 @@ workday_discovery_*.csv
 **/companies/
 **/processed_companies.txt
 **/last_run.txt
+
+# Job Radar: feed is built in CI, not committed
+dashboard/site/data/

@@ -1,0 +1,181 @@
+{
+  "sources": [
+    "greenhouse",
+    "lever",
+    "ashby"
+  ],
+  "title_include": [
+    "software engineer",
+    "software developer",
+    "software development engineer",
+    "backend",
+    "back-end",
+    "back end",
+    "full stack",
+    "full-stack",
+    "fullstack",
+    "sde",
+    "platform engineer",
+    "java",
+    "golang",
+    "go developer",
+    "node",
+    "api engineer",
+    "distributed systems",
+    "member of technical staff",
+    "mts"
+  ],
+  "title_exclude": [
+    "intern",
+    "internship",
+    "apprentice",
+    "trainee",
+    "graduate",
+    "new grad",
+    "manager",
+    "director",
+    "head of",
+    "vice president",
+    "vp ",
+    "principal",
+    "distinguished",
+    "architect",
+    "android",
+    "ios",
+    "mobile",
+    "frontend",
+    "front-end",
+    "front end",
+    "qa ",
+    "test engineer",
+    "sdet",
+    "data scientist",
+    "machine learning researcher",
+    "sales",
+    "solutions engineer",
+    "support engineer",
+    "recruiter"
+  ],
+  "india_terms": [
+    "india",
+    "bengaluru",
+    "bangalore",
+    "hyderabad",
+    "pune",
+    "chennai",
+    "mumbai",
+    "gurgaon",
+    "gurugram",
+    "noida",
+    "delhi",
+    "kochi",
+    "trivandrum",
+    "thiruvananthapuram"
+  ],
+  "home_city_terms": [
+    "bengaluru",
+    "bangalore"
+  ],
+  "include_remote": true,
+  "remote_ok_terms": [
+    "anywhere",
+    "worldwide",
+    "global",
+    "apac",
+    "asia"
+  ],
+  "remote_block_terms": [
+    "us",
+    "usa",
+    "u.s.",
+    "united states",
+    "canada",
+    "uk",
+    "united kingdom",
+    "europe",
+    "emea",
+    "eu",
+    "germany",
+    "france",
+    "spain",
+    "poland",
+    "latam",
+    "brazil",
+    "mexico",
+    "americas",
+    "north america",
+    "australia",
+    "new zealand",
+    "japan",
+    "singapore",
+    "philippines",
+    "israel",
+    "netherlands",
+    "ireland",
+    "portugal",
+    "argentina",
+    "colombia"
+  ],
+  "stack_tags": {
+    "Java": [
+      "java",
+      "jvm"
+    ],
+    "Spring": [
+      "spring boot",
+      "spring"
+    ],
+    "Go": [
+      "golang",
+      "go developer",
+      "go engineer",
+      "written in go",
+      "experience with go",
+      "go/",
+      "in go and"
+    ],
+    "Node": [
+      "node.js",
+      "nodejs"
+    ],
+    "TypeScript": [
+      "typescript"
+    ],
+    "Python": [
+      "python"
+    ],
+    "Kafka": [
+      "kafka"
+    ],
+    "Kubernetes": [
+      "kubernetes",
+      "k8s",
+      "eks",
+      "gke"
+    ],
+    "GCP": [
+      "gcp",
+      "google cloud",
+      "bigquery"
+    ],
+    "AWS": [
+      "aws",
+      "amazon web services"
+    ],
+    "Microservices": [
+      "microservice"
+    ],
+    "LLM / AI": [
+      "llm",
+      "langchain",
+      "langgraph",
+      "rag",
+      "generative ai",
+      "genai",
+      "ai agents",
+      "agentic"
+    ]
+  },
+  "max_age_days": 60,
+  "max_jobs": 6000
+}
