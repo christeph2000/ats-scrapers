@@ -80,6 +80,7 @@ input[type=search]:focus, select:focus, button:focus-visible { outline: 2px soli
 .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .tag { font-size: 11.5px; padding: 1px 7px; border-radius: 6px; background: var(--chip); color: var(--muted); }
 .tag.lvl { background: var(--accent-soft); color: var(--accent); }
+.tag.sup { background: var(--new-soft); color: var(--new); font-weight: 600; }
 .badge { font-size: 11px; font-weight: 700; color: var(--new); background: var(--new-soft); padding: 1px 6px; border-radius: 5px; margin-left: 6px; vertical-align: 1px; }
 .actions { display: flex; gap: 4px; align-items: start; }
 .act {
@@ -172,6 +173,7 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
   </div>
 
   <div class="chiprow" id="row-place"><span class="lbl">Where</span></div>
+  <div class="chiprow" id="row-support"><span class="lbl">Support</span></div>
   <div class="chiprow" id="row-company"><span class="lbl">Company</span></div>
   <div class="chiprow" id="row-level"><span class="lbl">Level</span></div>
   <div class="chiprow" id="row-stack"><span class="lbl">Stack</span></div>
@@ -191,7 +193,8 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
 <script>
 (() => {
   const PAGE = 60;
-  const PLACES = [["home", "Bengaluru"], ["india", "Other India"], ["remote", "Remote"]];
+  const PLACES = [["home", "Bengaluru"], ["india", "Other India"], ["remote", "Remote"], ["abroad", "Abroad", "visa / relocation"]];
+  const SUPPORT = [["Visa sponsorship", "Visa sponsorship"], ["Relocation", "Relocation"]];
   const LEVELS = ["Junior", "Mid", "Senior", "Staff+", "Unspecified"];
   const SIZES = ["Startup", "Mid-size", "Large"];
   const TABS = [["inbox", "Inbox"], ["saved", "Saved"], ["applied", "Applied"], ["hidden", "Hidden"]];
@@ -208,7 +211,7 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
   const state = {
     tab: "inbox", q: "", posted: 7, added: "0", src: "", view: prefs.view === "table" ? "table" : "cards",
     sortKey: "added", sortDir: -1, targets: false,
-    place: new Set(), level: new Set(), stack: new Set(), size: new Set(), shown: PAGE
+    place: new Set(), level: new Set(), stack: new Set(), size: new Set(), support: new Set(), shown: PAGE
   };
   let data = { jobs: [] }, newestSeen = "", baseline = "", hasNew = false;
   const $ = (id) => document.getElementById(id);
@@ -252,7 +255,9 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
     }
     if (state.src && j.ats !== state.src) return false;
     if (state.targets && !j.target) return false;
-    if (state.place.size && !state.place.has(j.place)) return false;
+    // Abroad jobs only show when asked for, so the default view stays India + remote.
+    if (state.place.size ? !state.place.has(j.place) : j.place === "abroad") return false;
+    if (state.support.size && !j.support.some(s => state.support.has(s))) return false;
     if (state.level.size && !state.level.has(j.level)) return false;
     if (state.size.size && !state.size.has(j.size)) return false;
     if (state.stack.size && !j.stack.some(s => state.stack.has(s))) return false;
@@ -286,12 +291,13 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
 
   function cardHTML(j) {
     const st = statusOf(j);
-    const tags = [j.level !== "Unspecified" ? `<span class="tag lvl">${esc(j.level)}</span>` : "",
+    const tags = [...j.support.map(s => `<span class="tag sup">${esc(s)}</span>`),
+      j.level !== "Unspecified" ? `<span class="tag lvl">${esc(j.level)}</span>` : "",
       ...j.stack.map(s => `<span class="tag">${esc(s)}</span>`)].join("");
     return `<div class="job ${st}">
       <div>
         <a class="title" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>${newBadge(j)}
-        <div class="meta"><span class="co">${company(j)}</span><span title="Hiring volume across all locations">${esc(sizeText(j))}</span><span>${esc(j.location)}</span>${j.salary ? `<span>${esc(j.salary)}</span>` : ""}</div>
+        <div class="meta"><span class="co">${company(j)}</span><span title="Hiring volume across all locations">${esc(sizeText(j))}</span><span title="${esc(j.location_full || j.location)}">${esc(j.location)}</span>${j.salary ? `<span>${esc(j.salary)}</span>` : ""}</div>
         <div class="meta dates"><span title="${esc(j.posted_at || "")}">Posted <b>${short(j.posted_at)}</b> (${rel(j.posted_at)})</span>
           <span title="${esc(addedTitle(j))}">Added <b>${addedText(j)}</b></span><span>${esc(j.ats)}</span></div>
         <div class="tags">${tags}</div>
@@ -312,7 +318,7 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
         <td>${company(j)}</td>
         <td><a class="title" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>${newBadge(j)}
           ${j.stack.length ? `<div class="muted" style="font-size:12px">${esc(j.stack.join(" · "))}</div>` : ""}</td>
-        <td>${esc(j.location)}</td>
+        <td title="${esc(j.location_full || j.location)}">${esc(j.location)}${j.support.length ? `<div><span class="tag sup">${esc(j.support.join(" · "))}</span></div>` : ""}</td>
         <td class="nowrap" title="${esc(sizeText(j))}">${esc(j.size)} <span class="muted">${j.open_roles.toLocaleString()}</span></td>
         <td class="num" title="${esc(rel(j.posted_at))}">${short(j.posted_at)}</td>
         <td class="num" title="${esc(addedTitle(j))}">${addedText(j)}</td>
@@ -384,7 +390,7 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
   $("reset").onclick = () => {
     Object.assign(state, { q: "", src: "", posted: 0, added: "0", targets: false, shown: PAGE });
     $("q").value = ""; $("src").value = ""; $("posted").value = "0"; $("added").value = "0";
-    [state.place, state.level, state.stack, state.size].forEach(s => s.clear());
+    [state.place, state.level, state.stack, state.size, state.support].forEach(s => s.clear());
     document.querySelectorAll(".chip[aria-pressed]").forEach(b => b.setAttribute("aria-pressed", "false"));
     render();
   };
@@ -406,7 +412,7 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
 
   function boot(payload) {
     data = payload;
-    data.jobs.forEach(j => { j.open_roles ??= 0; j.size ??= "Unknown"; j.target ??= false; });
+    data.jobs.forEach(j => { j.open_roles ??= 0; j.size ??= "Unknown"; j.target ??= false; j.support ??= []; });
     newestSeen = data.jobs.reduce((m, j) => (j.first_seen > m ? j.first_seen : m), "");
     baseline = data.tracking_since || data.jobs.reduce((m, j) => (!m || j.first_seen < m ? j.first_seen : m), "");
     hasNew = newestSeen > baseline;
@@ -427,6 +433,8 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
     const sizeHint = { Startup: `<${b.Startup}`, "Mid-size": `<${b["Mid-size"]}`, Large: `${b["Mid-size"]}+` };
     const targetCount = data.jobs.filter(j => j.target).length;
     chips("row-place", PLACES, ...toggler(state.place));
+    const supCount = (k) => String(data.jobs.filter(j => j.support.includes(k)).length);
+    chips("row-support", SUPPORT.map(([k, l]) => [k, l, supCount(k)]), ...toggler(state.support));
     chips("row-company", [["__t", "★ Targets", String(targetCount)]],
       () => { state.targets = !state.targets; }, () => state.targets);
     chips("row-company", SIZES.map(s => [s, s, sizeHint[s] + " roles"]), ...toggler(state.size));

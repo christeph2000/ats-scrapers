@@ -1,7 +1,7 @@
 name: Job Radar
 
 # Builds the personal job dashboard once a day:
-#   1. pulls the hosted Greenhouse / Lever / Ashby slices of the ats-scrapers dataset
+#   1. pulls the hosted ats-scrapers dataset slices listed in dashboard/config.json
 #   2. keeps roles matching dashboard/config.json
 #   3. publishes dashboard/site (page + data/jobs.json) to GitHub Pages
 #
@@ -13,6 +13,11 @@ on:
     - cron: "7 16 * * *" # 21:37 IST: pick up that day's snapshot
     - cron: "17 1 * * *" # 06:47 IST: catch-up in case the snapshot ran late
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and summarise the feed without publishing
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -31,7 +36,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
 
@@ -40,7 +45,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install httpx pyarrow
+        run: pip install httpx pyarrow pytest
+
+      - name: Test filters
+        run: python -m pytest dashboard/test_build_jobs.py -q -p no:cacheprovider -o addopts=""
 
       - id: pages
         uses: actions/configure-pages@v5
@@ -50,12 +58,30 @@ jobs:
           python dashboard/build_jobs.py
           --previous "${{ steps.pages.outputs.base_url }}/data/jobs.json"
 
+      - name: Summarise feed
+        run: |
+          python - <<'PY'
+          import collections, json
+          d = json.load(open("dashboard/site/data/jobs.json"))
+          j = d["jobs"]
+          def note(title, lines):
+              print(f"::notice title={title}::" + "%0A".join(lines)[:3900])
+          note("Feed", [f"total {d['total']}, new {d['new_today']}", f"places {d['places']}",
+                        f"failed sources {d['failed_sources']}",
+                        "support " + str(collections.Counter(s for x in j for s in x["support"]))])
+          note("Per source", [f"{k}: {v}" for k, v in sorted(d["counts"].items(), key=lambda kv: -kv[1])])
+          for place in ("remote", "abroad"):
+              c = collections.Counter(x["location"] for x in j if x["place"] == place)
+              note(f"Top {place} locations", [f"{n} | {l}" for l, n in c.most_common(40)])
+          PY
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dashboard/site
 
   deploy:
     needs: build
+    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
