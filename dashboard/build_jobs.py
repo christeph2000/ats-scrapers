@@ -89,11 +89,32 @@ SPACE_RE = re.compile(r"\s+")
 # place (e.g. "Remote - Costa Rica", "San Francisco") and is not "remote from
 # India".
 REMOTE_WORDS = re.compile(
-    r"\b(remote|remotely|fully|full|100%?|first|friendly|only|work from home|wfh|"
+    r"\b(remote|remotely|fully|full|100|first|friendly|only|work from home|wfh|"
     r"distributed|anywhere|worldwide|global|globally|international|location|"
-    r"flexible|open|any|home|based|position|role|team|hybrid|of|in|the|or|and|with)\b"
+    r"open|any|home|based|position|role|team|hybrid)\b",
+    re.I,
 )
-REMOTE_REGION_OK = re.compile(r"\b(apac|asia|asia pacific|asia-pacific|south asia)\b")
+# Connector words are only ignored in lowercase: "Remote, OR" is Oregon and
+# "Remote, IN" is ambiguous (Indiana), so those must not be stripped.
+REMOTE_CONNECTORS = re.compile(r"\b(of|in|the|or|and|with)\b")
+REMOTE_REGION_OK = re.compile(r"\b(apac|asia|asia pacific|asia-pacific|south asia)\b", re.I)
+# Workday hides multi-location postings behind "2 Locations" etc.
+GENERIC_LOCATION = re.compile(r"^\s*\d+\s+locations?\s*$", re.I)
+
+_US_STATES = (
+    "AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|"
+    "NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY"
+)
+_US_STATE_NAMES = (
+    "alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|"
+    "hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|"
+    "michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|"
+    "new mexico|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|"
+    "south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|"
+    "west virginia|wisconsin|wyoming"
+)
+US_LOCATION_NAME = re.compile(rf"\b(united states|usa|u\.s\.a?\.?|{_US_STATE_NAMES})\b", re.I)
+US_LOCATION_CODE = re.compile(rf"(,|-|\s)\s*({_US_STATES})\b(?![a-z])")
 REMOTE_SIGNAL = re.compile(r"\b(remote|anywhere|worldwide|work from home|wfh)\b")
 
 _REGIONS = (
@@ -220,9 +241,11 @@ class Matcher:
             return False
         if country and country != "IN":
             return False
-        residue = REMOTE_REGION_OK.sub(" ", REMOTE_WORDS.sub(" ", loc))
-        if re.sub(r"[^a-z]+", "", residue):
-            return False  # names a specific non-India place
+        residue = REMOTE_CONNECTORS.sub(
+            " ", REMOTE_REGION_OK.sub(" ", REMOTE_WORDS.sub(" ", location))
+        )
+        if re.sub(r"[\W_]+", "", residue):
+            return False  # names a specific non-India place (or isn't a place at all)
         if INDIA_IN_TEXT.search(desc):
             return True
         return not REMOTE_RESTRICTED.search(desc)
@@ -237,11 +260,31 @@ class Matcher:
     ) -> str | None:
         if self.is_india(location, country):
             return "home" if self.home and self.home.search(location.lower()) else "india"
+        if GENERIC_LOCATION.match(location) and self.india and self.india.search(desc):
+            return "home" if self.home and self.home.search(desc) else "india"
         if self.include_remote and self.remote_ok(location, country, remote_flag, desc):
             return "remote"
-        if self.include_abroad and support:
+        if self.include_abroad and self.abroad_ok(location, country, support):
             return "abroad"
         return None
+
+    @staticmethod
+    def abroad_ok(location: str, country: str | None, support: list[str]) -> bool:
+        """Visa sponsorship anywhere; relocation only outside the US.
+
+        US "relocation assistance" is almost always domestic and comes without
+        a visa, so on its own it doesn't help someone moving from India.
+        """
+        if "Visa sponsorship" in support:
+            return True
+        if "Relocation" not in support:
+            return False
+        is_us = (
+            country == "US"
+            or bool(US_LOCATION_NAME.search(location))
+            or bool(US_LOCATION_CODE.search(location))
+        )
+        return not is_us
 
     def display_location(self, location: str, place: str) -> str:
         """For multi-location postings, show the Indian locations first."""

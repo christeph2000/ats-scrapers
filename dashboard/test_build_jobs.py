@@ -69,6 +69,10 @@ def test_open_remote(loc: str) -> None:
         "Remote - US",
         "Remote - EMEA",
         "AU: Sydney (45 Clarence St)",
+        "Remote, OR",
+        "Мексика",
+        "1.0% – 1.0%",
+        "Flexible, Berlin",
     ],
 )
 def test_other_places_dropped(loc: str) -> None:
@@ -149,6 +153,30 @@ def test_abroad_kept_only_with_support() -> None:
         == "abroad"
     )
     assert place("Berlin, Germany", "Visa sponsorship is not available.") is None
+
+
+def test_generic_workday_location_uses_description() -> None:
+    assert place("2 Locations", "Location: Bengaluru, India. Hybrid.") == "home"
+    assert place("3 Locations", "Offices in Pune and Hyderabad, India.") == "india"
+    assert place("2 Locations", "Offices in Austin and Seattle.") is None
+
+
+@pytest.mark.parametrize(
+    "loc,kept",
+    [
+        ("McLean, VA", False),
+        ("United States-Alabama-Huntsville", False),
+        ("Colorado Springs, Colorado", False),
+        ("Office - USA - CA - Headquarters", False),
+        ("Berlin", True),
+        ("Tres Cantos, Madrid, ES", True),
+        ("Amsterdam HQ", True),
+    ],
+)
+def test_relocation_only_abroad_excludes_us(loc: str, kept: bool) -> None:
+    assert (place(loc, "Relocation assistance is available.") == "abroad") is kept
+    # Visa sponsorship keeps the job wherever it is.
+    assert place(loc, "We sponsor visas.") == "abroad"
 
 
 def test_multi_location_display() -> None:
