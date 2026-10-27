@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Job Application for Senior Backend Engineer at Acme</title>
+<style>body{font-family:sans-serif;max-width:700px;margin:20px auto} .field{margin:12px 0} label{display:block} .listbox{border:1px solid #ccc} .listbox[hidden]{display:none}</style></head>
+<body><h1 class="section-header">Senior Backend Engineer</h1>
+<form id="application-form">
+ <div class="field"><label for="first_name">First Name<span>*</span></label><input id="first_name" name="first_name" aria-required="true"></div>
+ <div class="field"><label for="last_name">Last Name<span>*</span></label><input id="last_name" name="last_name" aria-required="true"></div>
+ <div class="field"><label for="email">Email<span>*</span></label><input id="email" type="text" name="email" aria-required="true"></div>
+ <div class="field"><label for="phone">Phone</label><input id="phone" type="tel" name="phone"></div>
+ <div class="field"><label for="resume">Resume/CV<span>*</span></label><input id="resume" type="file" style="position:absolute;opacity:0;width:1px;height:1px"><button type="button">Attach</button></div>
+ <div class="field"><label for="question_1">LinkedIn Profile</label><input id="question_1" type="text"></div>
+ <div class="field"><label for="question_2">Are you legally authorized to work in India?*</label>
+   <select id="question_2"><option value="">Select...</option><option value="1">Yes</option><option value="0">No</option></select></div>
+ <div class="field"><label id="q3-label" for="question_3">Will you now or in the future require visa sponsorship?*</label>
+   <div class="select__container"><div class="select__control"><div class="select__single-value" id="q3-value"></div>
+   <input id="question_3" class="select__input" role="combobox" aria-autocomplete="list" aria-controls="q3-list" aria-labelledby="q3-label"></div>
+   <div id="q3-list" class="listbox" role="listbox" hidden></div></div></div>
+ <div class="field"><label for="question_4">What is your notice period?</label><input id="question_4" type="text"></div>
+ <div class="field"><label for="question_5">Gender</label>
+   <select id="question_5"><option value="">Select...</option><option>Male</option><option>Female</option><option>Decline to self-identify</option></select></div>
+ <div class="field"><label for="question_6">Why do you want to work at Acme?*</label><textarea id="question_6" required></textarea></div>
+ <div class="field"><label><input type="checkbox" id="consent" required> I agree to the processing of my data per the privacy policy</label></div>
+ <button type="submit">Submit application</button>
+</form>
+<script>
+ const inp=document.getElementById('question_3'), list=document.getElementById('q3-list'), val=document.getElementById('q3-value');
+ inp.addEventListener('input',()=>{ const q=inp.value.toLowerCase(); list.innerHTML='';
+   ['Yes','No'].filter(o=>o.toLowerCase().includes(q)).forEach((o,i)=>{const d=document.createElement('div');d.setAttribute('role','option');d.id='react-select-3-option-'+i;d.textContent=o;
+     d.addEventListener('click',()=>{val.textContent=o;inp.value='';list.hidden=true;});list.appendChild(d)}); list.hidden=!list.children.length;});
+ document.getElementById('application-form').addEventListener('submit',e=>{e.preventDefault();document.body.dataset.submitted='1'});
+</script></body></html>

@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Job Radar Apply Helper",
+  "version": "0.1.0",
+  "description": "Fills Greenhouse, Lever and Ashby application forms from your profile. You review and submit.",
+  "permissions": ["storage"],
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "action": { "default_title": "Job Radar Apply Helper: open settings" },
+  "background": { "service_worker": "src/background.js" },
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://job-boards.eu.greenhouse.io/*",
+        "https://boards.eu.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://jobs.eu.lever.co/*",
+        "https://jobs.ashbyhq.com/*"
+      ],
+      "all_frames": true,
+      "js": ["src/common.js", "src/match.js", "src/fill.js", "src/panel.js", "src/content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.github.io/*", "http://localhost/*", "http://127.0.0.1/*"],
+      "js": ["src/common.js", "src/radar.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

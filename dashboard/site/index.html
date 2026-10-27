@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="job-radar" content="1">
 <title>Job Radar</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='13' fill='none' stroke='%232f6f5e' stroke-width='3'/><circle cx='16' cy='16' r='4' fill='%232f6f5e'/></svg>">
 <style>
@@ -413,6 +414,7 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
     await loadRoles();
     buildFilters();
     render();
+    applyFromExtension();
   }
 
   // ---- filters -------------------------------------------------------------
@@ -654,6 +656,35 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
     catch { notice("That file isn't a Job Radar backup."); }
   };
   function notice(text) { $("notice").hidden = false; $("notice").textContent = text; }
+
+  // ---- Apply Helper extension ----------------------------------------------
+  // The extension posts the jobs you submitted through it; mark them Applied.
+  let extPending = [];
+  function applyFromExtension() {
+    if (!extPending.length) return;
+    if (!jobs.length && !index) return;          // wait for the feed
+    const acked = [], marked = [];
+    for (const it of extPending) {
+      const ref = (it.key || "").split(":")[1] || "";
+      const job = jobs.find(j => j.id === it.key) ||
+        (ref && jobs.find(j => (j.url || "").includes(ref))) ||
+        (it.url && jobs.find(j => j.url && it.url.startsWith(j.url.split("?")[0])));
+      const id = job ? job.id : it.key;
+      if (!id) continue;
+      if (saved.status[id] !== "applied") { saved.status[id] = "applied"; marked.push(it.title || id); }
+      acked.push(it.key || it.url);
+    }
+    extPending = [];
+    persist();
+    if (marked.length) notice(`Marked ${marked.length} job${marked.length === 1 ? "" : "s"} as Applied from the Apply Helper.`);
+    window.postMessage({ source: "jobradar-page", type: "ack", keys: acked }, location.origin);
+    render();
+  }
+  window.addEventListener("message", (e) => {
+    if (e.source !== window || !e.data || e.data.source !== "jobradar-ext" || e.data.type !== "applied") return;
+    extPending = extPending.concat(e.data.items || []);
+    if (jobs.length) applyFromExtension();
+  });
 
   // ---- boot ----------------------------------------------------------------
   async function boot() {
