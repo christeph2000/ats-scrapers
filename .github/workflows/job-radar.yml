@@ -79,9 +79,10 @@ jobs:
           rows = sorted(d["funnel"].items(), key=lambda kv: -kv[1]["kept"])
           note("Per source (rows > title hint > role > in scope > kept after age limit)",
                [f"{s}: " + " > ".join(str(f[k]) for k in steps) for s, f in rows])
-          empty = [s for s, f in rows if f["rows"] > 1000 and f["kept"] == 0]
-          if empty:
-              note("Sources with no matches", empty, "warning")
+          # Jobs that reached India/remote/abroad and were then all lost points at bad data.
+          lost = [s for s, f in rows if f["in_scope"] >= 20 and f["kept"] == 0]
+          if lost:
+              note("Sources that lost every in-scope job", lost, "warning")
           PY
 
       - uses: actions/upload-pages-artifact@v3
