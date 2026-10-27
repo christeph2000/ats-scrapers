@@ -38,78 +38,331 @@
     "weworkremotely",
     "welcometothejungle"
   ],
-  "title_include": [
-    "software engineer",
-    "software developer",
-    "software development engineer",
-    "backend",
-    "back-end",
-    "back end",
-    "full stack",
-    "full-stack",
-    "fullstack",
-    "sde",
-    "platform engineer",
-    "java",
-    "golang",
-    "go developer",
-    "node",
-    "api engineer",
-    "distributed systems",
-    "member of technical staff",
-    "mts"
-  ],
+  "roles": {
+    "Backend": {
+      "include": [
+        "backend",
+        "back-end",
+        "back end",
+        "server side",
+        "server-side",
+        "api engineer",
+        "api developer",
+        "java developer",
+        "java engineer",
+        "java software engineer",
+        "golang",
+        "go developer",
+        "go engineer",
+        "node.js developer",
+        "node.js engineer",
+        "nodejs developer",
+        "python developer",
+        "python engineer",
+        "distributed systems",
+        ".net developer",
+        "c# developer",
+        "ruby developer",
+        "php developer",
+        "scala engineer",
+        "rust engineer",
+        "microservices"
+      ]
+    },
+    "Full stack": {
+      "include": [
+        "full stack",
+        "full-stack",
+        "fullstack"
+      ]
+    },
+    "Frontend": {
+      "include": [
+        "frontend",
+        "front-end",
+        "front end",
+        "ui engineer",
+        "ui developer",
+        "react developer",
+        "react engineer",
+        "angular developer",
+        "javascript developer",
+        "web developer",
+        "web engineer",
+        "vue developer"
+      ]
+    },
+    "Mobile": {
+      "include": [
+        "android",
+        "ios",
+        "mobile engineer",
+        "mobile developer",
+        "mobile application",
+        "flutter",
+        "react native",
+        "kotlin developer",
+        "swift developer"
+      ]
+    },
+    "Data & ML": {
+      "include": [
+        "data engineer",
+        "data engineering",
+        "data scientist",
+        "data science",
+        "machine learning",
+        "ml engineer",
+        "mlops",
+        "ai engineer",
+        "ai/ml",
+        "applied scientist",
+        "research engineer",
+        "research scientist",
+        "analytics engineer",
+        "data analyst",
+        "llm",
+        "nlp",
+        "computer vision",
+        "deep learning",
+        "big data",
+        "etl developer",
+        "data platform",
+        "generative ai",
+        "genai"
+      ]
+    },
+    "DevOps & Cloud": {
+      "include": [
+        "devops",
+        "dev ops",
+        "sre",
+        "site reliability",
+        "platform engineer",
+        "infrastructure engineer",
+        "cloud engineer",
+        "cloud architect",
+        "kubernetes",
+        "build engineer",
+        "release engineer",
+        "devsecops",
+        "systems engineer",
+        "production engineer",
+        "network engineer"
+      ]
+    },
+    "QA & Testing": {
+      "include": [
+        "qa",
+        "sdet",
+        "test engineer",
+        "testing engineer",
+        "quality engineer",
+        "quality assurance",
+        "test automation",
+        "automation engineer",
+        "automation tester",
+        "software tester"
+      ]
+    },
+    "Security": {
+      "include": [
+        "security engineer",
+        "application security",
+        "appsec",
+        "product security",
+        "cloud security",
+        "penetration tester",
+        "security analyst",
+        "cybersecurity",
+        "security researcher"
+      ]
+    },
+    "Embedded": {
+      "include": [
+        "embedded",
+        "firmware",
+        "fpga",
+        "asic",
+        "hardware engineer",
+        "driver engineer",
+        "bsp engineer"
+      ]
+    },
+    "Engineering manager": {
+      "include": [
+        "engineering manager",
+        "manager, software",
+        "software engineering manager",
+        "software development manager",
+        "head of engineering",
+        "director of engineering",
+        "director, engineering",
+        "vp engineering",
+        "vp of engineering",
+        "technical program manager",
+        "engineering lead"
+      ]
+    },
+    "Software engineer (general)": {
+      "fallback": true,
+      "include": [
+        "software engineer",
+        "software developer",
+        "software development engineer",
+        "sde",
+        "swe",
+        "member of technical staff",
+        "mts",
+        "programmer",
+        "application developer",
+        "application engineer",
+        "developer",
+        "engineer i",
+        "engineer ii",
+        "engineer iii"
+      ]
+    }
+  },
   "title_exclude": [
-    "intern",
-    "internship",
-    "apprentice",
-    "trainee",
-    "graduate",
-    "new grad",
-    "manager",
-    "director",
-    "head of",
-    "vice president",
-    "vp ",
-    "principal",
-    "distinguished",
-    "architect",
-    "android",
-    "ios",
-    "mobile",
-    "frontend",
-    "front-end",
-    "front end",
-    "qa ",
-    "test engineer",
-    "sdet",
-    "data scientist",
-    "machine learning researcher",
-    "sales",
-    "solutions engineer",
+    "sales engineer",
+    "sales development",
+    "sales executive",
+    "account executive",
+    "account manager",
+    "business development",
+    "business developer",
+    "recruiter",
+    "recruiting",
+    "talent acquisition",
+    "customer success",
+    "customer support",
     "support engineer",
-    "recruiter"
+    "technical support",
+    "solutions engineer",
+    "solution engineer",
+    "pre-sales",
+    "presales",
+    "field engineer",
+    "field service",
+    "technician",
+    "mechanical engineer",
+    "civil engineer",
+    "electrical engineer",
+    "process engineer",
+    "marketing manager",
+    "marketing executive",
+    "hr executive",
+    "hr manager"
   ],
   "india_terms": [
     "india",
-    "bengaluru",
-    "bangalore",
-    "hyderabad",
-    "pune",
-    "chennai",
-    "mumbai",
-    "gurgaon",
-    "gurugram",
-    "noida",
-    "delhi",
-    "kochi",
-    "trivandrum",
-    "thiruvananthapuram"
+    "karnataka",
+    "telangana",
+    "maharashtra",
+    "tamil nadu",
+    "kerala",
+    "haryana",
+    "uttar pradesh",
+    "gujarat",
+    "west bengal"
   ],
-  "home_city_terms": [
-    "bengaluru",
-    "bangalore"
-  ],
+  "cities": {
+    "Bengaluru": [
+      "bengaluru",
+      "bangalore",
+      "blr"
+    ],
+    "Hyderabad": [
+      "hyderabad",
+      "secunderabad",
+      "hyd"
+    ],
+    "Pune": [
+      "pune"
+    ],
+    "Chennai": [
+      "chennai",
+      "madras"
+    ],
+    "Mumbai": [
+      "mumbai",
+      "bombay",
+      "navi mumbai",
+      "thane",
+      "powai"
+    ],
+    "Delhi NCR": [
+      "delhi",
+      "new delhi",
+      "gurgaon",
+      "gurugram",
+      "noida",
+      "greater noida",
+      "ncr",
+      "faridabad",
+      "ghaziabad"
+    ],
+    "Kochi": [
+      "kochi",
+      "cochin",
+      "ernakulam",
+      "infopark"
+    ],
+    "Thiruvananthapuram": [
+      "thiruvananthapuram",
+      "trivandrum",
+      "technopark"
+    ],
+    "Ahmedabad": [
+      "ahmedabad",
+      "gandhinagar",
+      "gift city"
+    ],
+    "Kolkata": [
+      "kolkata",
+      "calcutta"
+    ],
+    "Coimbatore": [
+      "coimbatore"
+    ],
+    "Jaipur": [
+      "jaipur"
+    ],
+    "Chandigarh": [
+      "chandigarh",
+      "mohali",
+      "panchkula"
+    ],
+    "Indore": [
+      "indore"
+    ],
+    "Mysuru": [
+      "mysuru",
+      "mysore"
+    ],
+    "Mangaluru": [
+      "mangaluru",
+      "mangalore"
+    ],
+    "Bhubaneswar": [
+      "bhubaneswar"
+    ],
+    "Vadodara": [
+      "vadodara",
+      "baroda"
+    ],
+    "Nagpur": [
+      "nagpur"
+    ],
+    "Visakhapatnam": [
+      "visakhapatnam",
+      "vizag"
+    ],
+    "Lucknow": [
+      "lucknow"
+    ]
+  },
   "include_remote": true,
   "include_abroad_with_support": true,
   "stack_tags": {
@@ -170,31 +423,78 @@
       "genai",
       "ai agents",
       "agentic"
+    ],
+    "React": [
+      "react",
+      "react.js",
+      "reactjs",
+      "next.js"
+    ],
+    "Angular": [
+      "angular"
+    ],
+    "Kotlin": [
+      "kotlin"
+    ],
+    "Swift": [
+      "swift",
+      "swiftui"
+    ],
+    "Flutter": [
+      "flutter"
+    ],
+    "Spark": [
+      "spark",
+      "pyspark",
+      "databricks"
+    ],
+    "Airflow": [
+      "airflow"
+    ],
+    "PyTorch": [
+      "pytorch",
+      "tensorflow"
+    ],
+    "Terraform": [
+      "terraform"
+    ],
+    "Rust": [
+      "rust"
+    ],
+    "C++": [
+      "c++"
+    ],
+    ".NET": [
+      ".net",
+      "c#"
+    ],
+    "SQL": [
+      "sql",
+      "postgres",
+      "postgresql",
+      "mysql"
+    ],
+    "Azure": [
+      "azure"
     ]
   },
-  "target_companies": [
-    "Southwest Airlines",
-    "Barclays",
-    "Optum",
-    "Swiggy",
-    "Zansar",
-    "Teradata",
-    "Adjoe",
-    "ElevenLabs",
-    "Texas Instruments",
-    "Everpure",
-    "ARQ",
-    "UiPath",
-    "Tesco",
-    "Commure",
-    "NetApp",
-    "Conde Nast",
-    "Condé Nast"
-  ],
   "size_buckets": {
     "Startup": 25,
     "Mid-size": 250
   },
   "max_age_days": 60,
-  "max_jobs": 12000
+  "remember_missing_days": 30,
+  "max_jobs": 60000,
+  "default_profile": {
+    "roles": [
+      "Backend",
+      "Full stack",
+      "Software engineer (general)"
+    ],
+    "city": "Bengaluru",
+    "remote": true,
+    "abroad": false,
+    "levels": [],
+    "targets": []
+  }
 }

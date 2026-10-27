@@ -12,15 +12,20 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from build_jobs import Matcher, clean_text, support_tags
+from build_jobs import Matcher, clean_text, level_for, load_history, support_tags
 
 CFG = json.loads((Path(__file__).resolve().parent / "config.json").read_text())
 M = Matcher(CFG)
 
 
 def place(location: str, desc: str = "", country: str | None = None, remote=None) -> str | None:
+    """Old-style label: "home" for Bengaluru, otherwise the place name."""
     text = clean_text(desc)
-    return M.place(location, country, remote, text, support_tags(text))
+    where = M.place(location, country, remote, text, support_tags(text))
+    if where is None:
+        return None
+    name, cities = where
+    return "home" if name == "india" and "Bengaluru" in cities else name
 
 
 @pytest.mark.parametrize(
@@ -181,18 +186,81 @@ def test_relocation_only_abroad_excludes_us(loc: str, kept: bool) -> None:
 
 def test_multi_location_display() -> None:
     loc = "Bengaluru, India; Sydney, Australia; Santiago, Chile"
-    assert M.display_location(loc, "home") == "Bengaluru, India (+2 outside India)"
+    assert M.display_location(loc, "india") == "Bengaluru, India (+2 outside India)"
 
 
 @pytest.mark.parametrize(
-    "title,ok",
+    "title,roles",
     [
-        ("Senior Backend Engineer", True),
-        ("Software Engineer II, Platform", True),
-        ("Engineering Manager", False),
-        ("Frontend Engineer", False),
-        ("Software Engineer Intern", False),
+        ("Senior Backend Engineer", ["Backend"]),
+        ("Software Engineer II, Platform", ["Software engineer (general)"]),
+        ("Software Engineer, Backend", ["Backend"]),
+        ("Senior Full Stack Developer", ["Full stack"]),
+        ("Frontend Engineer (React)", ["Frontend"]),
+        ("Android Developer", ["Mobile"]),
+        ("Senior Data Engineer", ["Data & ML"]),
+        ("Site Reliability Engineer", ["DevOps & Cloud"]),
+        ("SDET II", ["QA & Testing"]),
+        ("Engineering Manager, Payments", ["Engineering manager"]),
+        ("Software Engineer Intern", ["Software engineer (general)"]),
+        ("Software Engineer, Finance Platform", ["Software engineer (general)"]),
+        ("Salesforce Developer", ["Software engineer (general)"]),
+        ("Solutions Engineer", []),
+        ("Technical Recruiter - Software Engineering", []),
+        ("Account Executive", []),
+        ("Sales Engineer", []),
     ],
 )
-def test_titles(title: str, ok: bool) -> None:
-    assert M.title_ok(title) is ok
+def test_roles(title: str, roles: list[str]) -> None:
+    assert M.roles_for(title) == roles
+
+
+@pytest.mark.parametrize(
+    "title,level",
+    [
+        ("Software Engineer Intern", "Intern/Fresher"),
+        ("Graduate Software Engineer", "Intern/Fresher"),
+        ("Senior Backend Engineer", "Senior"),
+        ("SDE III", "Senior"),
+        ("Staff Engineer", "Staff+"),
+        ("Software Engineer II", "Mid"),
+        ("Member of Technical Staff", "Unspecified"),
+    ],
+)
+def test_levels(title: str, level: str) -> None:
+    assert level_for(title) == level
+
+
+@pytest.mark.parametrize(
+    "loc,cities",
+    [
+        ("Gurugram, Haryana, India", ["Delhi NCR"]),
+        ("Bangalore, IND; Hyderabad, IND", ["Bengaluru", "Hyderabad"]),
+        ("Kochi, Kerala", ["Kochi"]),
+        ("India", []),
+    ],
+)
+def test_cities(loc: str, cities: list[str]) -> None:
+    assert M.place(loc, None, None, "", []) == ("india", cities)
+
+
+def test_history_carries_first_seen(tmp_path: Path) -> None:
+    (tmp_path / "seen.json").write_text(
+        json.dumps({"tracking_since": "2026-10-21", "jobs": {"a:1": ["2026-10-22T20:00Z", "x"]}})
+    )
+    jobs, since = load_history(str(tmp_path))
+    assert jobs["a:1"][0] == "2026-10-22T20:00Z" and since == "2026-10-21"
+
+
+def test_history_falls_back_to_legacy_feed(tmp_path: Path) -> None:
+    (tmp_path / "jobs.json").write_text(
+        json.dumps(
+            {"tracking_since": "2026-10-21", "jobs": [{"id": "a:1", "first_seen": "2026-10-23"}]}
+        )
+    )
+    jobs, since = load_history(str(tmp_path))
+    assert jobs == {"a:1": ["2026-10-23", "2026-10-23"]} and since == "2026-10-21"
+
+
+def test_history_missing_is_baseline(tmp_path: Path) -> None:
+    assert load_history(str(tmp_path)) == ({}, None)
