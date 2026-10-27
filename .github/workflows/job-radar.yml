@@ -75,9 +75,9 @@ jobs:
                         f"places {d['places']}", f"failed sources {d['failed_sources']}",
                         "roles " + ", ".join(f"{k} {v['count']}" for k, v in d["roles"].items()),
                         "cities " + ", ".join(f"{k} {v}" for k, v in list(d["cities"].items())[:12])])
-          steps = ["rows", "title_hint", "role_match", "recent", "kept"]
+          steps = ["rows", "title_hint", "role_match", "in_scope", "kept"]
           rows = sorted(d["funnel"].items(), key=lambda kv: -kv[1]["kept"])
-          note("Per source (rows > title hint > role > recent > kept)",
+          note("Per source (rows > title hint > role > in scope > kept after age limit)",
                [f"{s}: " + " > ".join(str(f[k]) for k in steps) for s, f in rows])
           empty = [s for s, f in rows if f["rows"] > 1000 and f["kept"] == 0]
           if empty:

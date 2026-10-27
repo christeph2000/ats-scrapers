@@ -102,8 +102,8 @@ reloads itself once.
 
 Actions → Job Radar → Run workflow → tick **dry_run**. It builds the feed and
 posts a summary on the run page without deploying: totals per role, place
-and city, plus a per-source funnel (rows → title hint → role match → recent
-→ kept). A big source that yields nothing is flagged as a warning.
+and city, plus a per-source funnel (rows → title hint → role match → in scope
+→ kept after the age limit). A big source that yields nothing is flagged as a warning.
 
 ## Run locally
 
