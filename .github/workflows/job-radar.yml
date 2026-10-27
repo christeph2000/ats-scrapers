@@ -1,9 +1,10 @@
 name: Job Radar
 
-# Builds the personal job dashboard once a day:
+# Builds the Job Radar feed twice a day:
 #   1. pulls the hosted ats-scrapers dataset slices listed in dashboard/config.json
-#   2. keeps roles matching dashboard/config.json
-#   3. publishes dashboard/site (page + data/jobs.json) to GitHub Pages
+#   2. keeps engineering roles in India / remote-from-India / abroad with visa support
+#   3. publishes dashboard/site (page + data/index.json, data/roles/*.json, data/seen.json)
+# Each visitor picks their roles and city on the page; that stays in their browser.
 #
 # One-time setup: Settings → Pages → Build and deployment → Source: "GitHub Actions".
 
@@ -56,23 +57,32 @@ jobs:
       - name: Build jobs feed
         run: >
           python dashboard/build_jobs.py
-          --previous "${{ steps.pages.outputs.base_url }}/data/jobs.json"
+          --previous "${{ steps.pages.outputs.base_url }}/data"
+          --app-version "${{ github.sha }}"
+
+      - name: Stamp page version
+        # Lets phones that cached an older page notice the new one and reload.
+        run: sed -i 's/__APP_VERSION__/${{ github.sha }}/' dashboard/site/index.html
 
       - name: Summarise feed
         run: |
           python - <<'PY'
-          import collections, json
-          d = json.load(open("dashboard/site/data/jobs.json"))
-          j = d["jobs"]
-          def note(title, lines):
-              print(f"::notice title={title}::" + "%0A".join(lines)[:3900])
-          note("Feed", [f"total {d['total']}, new {d['new_today']}", f"places {d['places']}",
-                        f"failed sources {d['failed_sources']}",
-                        "support " + str(collections.Counter(s for x in j for s in x["support"]))])
-          note("Per source", [f"{k}: {v}" for k, v in sorted(d["counts"].items(), key=lambda kv: -kv[1])])
-          for place in ("remote", "abroad"):
-              c = collections.Counter(x["location"] for x in j if x["place"] == place)
-              note(f"Top {place} locations", [f"{n} | {l}" for l, n in c.most_common(40)])
+          import json
+          d = json.load(open("dashboard/site/data/index.json"))
+          def note(title, lines, level="notice"):
+              print(f"::{level} title={title}::" + "%0A".join(lines)[:3900])
+          note("Feed", [f"total {d['total']}, new this run {d['new_in_run']}",
+                        f"places {d['places']}", f"failed sources {d['failed_sources']}",
+                        "roles " + ", ".join(f"{k} {v['count']}" for k, v in d["roles"].items()),
+                        "cities " + ", ".join(f"{k} {v}" for k, v in list(d["cities"].items())[:12])])
+          steps = ["rows", "title_hint", "role_match", "in_scope", "kept"]
+          rows = sorted(d["funnel"].items(), key=lambda kv: -kv[1]["kept"])
+          note("Per source (rows > title hint > role > in scope > kept after age limit)",
+               [f"{s}: " + " > ".join(str(f[k]) for k in steps) for s, f in rows])
+          # Jobs that reached India/remote/abroad and were then all lost points at bad data.
+          lost = [s for s, f in rows if f["in_scope"] >= 20 and f["kept"] == 0]
+          if lost:
+              note("Sources that lost every in-scope job", lost, "warning")
           PY
 
       - uses: actions/upload-pages-artifact@v3

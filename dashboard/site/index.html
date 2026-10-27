@@ -24,6 +24,7 @@
   --star: #e5c15c; --chip: #262a26; --shadow: none; --row-hover: #222622;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -124,6 +125,36 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
   .chiprow .lbl { width: auto; margin-right: 2px; }
 }
 </style>
+<style>
+.setupbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.setupbar b { color: var(--ink); font-weight: 500; }
+.btn {
+  font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); color: var(--ink);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); font-weight: 600; }
+.btn:hover { border-color: var(--muted); }
+dialog {
+  width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line);
+  border-radius: 14px; background: var(--panel); color: var(--ink); box-shadow: 0 20px 50px rgba(0,0,0,.25);
+}
+dialog::backdrop { background: rgba(0,0,0,.35); }
+.dlg { padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 14px; }
+.dlg h2 { margin: 0; font-size: 18px; }
+.dlg p { margin: 0; color: var(--muted); font-size: 13px; }
+.field > label, .field > .flabel { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; }
+.field .chiprow { margin: 0; flex-wrap: wrap; overflow: visible; margin-right: 0; padding-right: 0; }
+.field select, .field textarea {
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 10px; width: 100%;
+}
+.field textarea { min-height: 62px; resize: vertical; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+.checks label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; position: sticky; bottom: 0; background: var(--panel); padding-top: 4px; }
+.synctext { width: 100%; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-height: 70px; word-break: break-all; }
+.loading { color: var(--muted); padding: 30px 0; text-align: center; }
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -131,10 +162,14 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
     <h1>Job Radar</h1>
     <div class="sub" id="updated">Loading…</div>
   </header>
+  <div class="setupbar" id="setupbar" hidden>
+    <span id="setup-summary"></span>
+    <button class="btn" id="edit-setup">Edit my setup</button>
+  </div>
 
   <div class="stats">
-    <div class="stat"><b id="s-total">–</b><span>matching roles</span></div>
-    <div class="stat new"><b id="s-new">–</b><span>added in latest run</span></div>
+    <div class="stat"><b id="s-total">–</b><span>roles for your setup</span></div>
+    <div class="stat new"><b id="s-new">–</b><span id="s-new-label">new since your last visit</span></div>
     <div class="stat"><b id="s-saved">–</b><span>saved</span></div>
     <div class="stat"><b id="s-applied">–</b><span>applied</span></div>
   </div>
@@ -143,17 +178,18 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
   <div class="tabs" role="tablist" id="tabs"></div>
 
   <div class="controls">
-    <input type="search" id="q" placeholder="Search title or company…" aria-label="Search">
+    <input type="search" id="q" placeholder="Search title, company or city…" aria-label="Search">
     <select id="posted" aria-label="Posted within">
-      <option value="0">Posted: any time</option>
+      <option value="0" selected>Posted: any time</option>
       <option value="3">Posted ≤ 3 days</option>
-      <option value="7" selected>Posted ≤ 7 days</option>
+      <option value="7">Posted ≤ 7 days</option>
       <option value="14">Posted ≤ 14 days</option>
       <option value="30">Posted ≤ 30 days</option>
     </select>
     <select id="added" aria-label="Added within">
       <option value="0" selected>Added: any time</option>
-      <option value="latest">Added in latest run</option>
+      <option value="visit">New since my last visit</option>
+      <option value="1">Added in last 24 h</option>
       <option value="3">Added ≤ 3 days</option>
       <option value="7">Added ≤ 7 days</option>
       <option value="14">Added ≤ 14 days</option>
@@ -178,116 +214,292 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
   <div class="chiprow" id="row-level"><span class="lbl">Level</span></div>
   <div class="chiprow" id="row-stack"><span class="lbl">Stack</span></div>
 
-  <div class="resultbar"><span id="count"></span><button class="chip ghost" id="reset">Clear filters</button></div>
-  <div id="results"></div>
+  <div class="resultbar"><span id="count"></span><button class="chip ghost" id="reset">Reset filters</button></div>
+  <div id="results"><div class="loading">Loading jobs…</div></div>
   <button class="act more" id="more" hidden>Show more</button>
 
   <div class="foot">
     <span id="foot-src"></span>
-    <button class="linkbtn" id="export">Export my statuses</button>
-    <button class="linkbtn" id="import">Import</button>
+    <button class="linkbtn" id="sync">Copy to another device</button>
+    <button class="linkbtn" id="export">Export backup</button>
+    <button class="linkbtn" id="import">Import backup</button>
     <input type="file" id="importFile" accept="application/json" hidden>
   </div>
 </div>
 
+<dialog id="setup">
+  <form class="dlg" method="dialog" id="setup-form">
+    <h2>Your setup</h2>
+    <p>Pick what you're looking for. It's saved only in this browser; nothing is sent anywhere.</p>
+    <div class="field"><span class="flabel">Roles</span><div class="chiprow" id="f-roles"></div></div>
+    <div class="field"><label for="f-city">Your city</label><select id="f-city"></select></div>
+    <div class="field"><span class="flabel">Show by default</span>
+      <div class="checks">
+        <label id="f-l-city"><input type="checkbox" id="f-p-city"> <span id="f-p-city-name">My city</span></label>
+        <label><input type="checkbox" id="f-p-india"> <span id="f-p-india-name">Other Indian cities</span></label>
+        <label><input type="checkbox" id="f-p-remote"> Remote (from India)</label>
+        <label><input type="checkbox" id="f-p-abroad"> Abroad with visa / relocation</label>
+      </div>
+    </div>
+    <div class="field"><span class="flabel">Experience (none selected = all)</span><div class="chiprow" id="f-levels"></div></div>
+    <div class="field"><label for="f-targets">Target companies <span class="muted">(optional, one per line or comma-separated)</span></label>
+      <textarea id="f-targets" placeholder="e.g. UiPath, Barclays, NetApp"></textarea></div>
+    <div class="dlg-actions">
+      <button class="btn" value="cancel" id="f-cancel" formnovalidate>Cancel</button>
+      <button class="btn primary" value="save" id="f-save">Save and show jobs</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="syncdlg">
+  <form class="dlg" method="dialog">
+    <h2>Copy to another device</h2>
+    <p>Open this link on your phone or other computer to copy your setup, Saved/Applied/Hidden statuses and muted companies there. Anyone with the link gets the same copy, so only send it to yourself.</p>
+    <textarea class="synctext" id="synctext" readonly></textarea>
+    <p id="syncmsg"></p>
+    <div class="dlg-actions"><button class="btn primary" value="close">Done</button></div>
+  </form>
+</dialog>
+
 <script>
 (() => {
+  const APP_VERSION = "__APP_VERSION__";
   const PAGE = 60;
-  const PLACES = [["home", "Bengaluru"], ["india", "Other India"], ["remote", "Remote"], ["abroad", "Abroad", "visa / relocation"]];
   const SUPPORT = [["Visa sponsorship", "Visa sponsorship"], ["Relocation", "Relocation"]];
-  const LEVELS = ["Junior", "Mid", "Senior", "Staff+", "Unspecified"];
+  const LEVELS = ["Intern/Fresher", "Junior", "Mid", "Senior", "Staff+", "Unspecified"];
   const SIZES = ["Startup", "Mid-size", "Large"];
   const TABS = [["inbox", "Inbox"], ["saved", "Saved"], ["applied", "Applied"], ["hidden", "Hidden"]];
-  const KEY = "jobradar.v1", PREF = "jobradar.prefs.v1";
+  const KEY = "jobradar.v1", PREF = "jobradar.prefs.v1", PROFILE = "jobradar.profile.v1", LAST = "jobradar.lastSeen.v1";
   const SORTS = { added: ["added", -1], posted: ["posted", -1], company: ["company", 1], size: ["size", 1], "size-desc": ["size", -1] };
 
-  const read = (k) => { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } };
+  const read = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
   const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-  const saved = read(KEY);
+  const sget = (k) => { try { return sessionStorage.getItem(k); } catch { return null; } };
+  const sset = (k, v) => { try { sessionStorage.setItem(k, v); } catch {} };
+
+  const saved = read(KEY) || {};
   saved.status ||= {};
   saved.mutedCompanies ||= [];
-  const prefs = read(PREF);
+  const prefs = read(PREF) || {};
+  let profile = read(PROFILE);
 
   const state = {
-    tab: "inbox", q: "", posted: 7, added: "0", src: "", view: prefs.view === "table" ? "table" : "cards",
+    tab: "inbox", q: "", posted: 0, added: "0", src: "", view: prefs.view === "table" ? "table" : "cards",
     sortKey: "added", sortDir: -1, targets: false,
     place: new Set(), level: new Set(), stack: new Set(), size: new Set(), support: new Set(), shown: PAGE
   };
-  let data = { jobs: [] }, newestSeen = "", baseline = "", hasNew = false;
+  let index = null, jobs = [], prevSeen = null, targetKeys = [];
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const companyKey = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-  const daysAgo = (iso) => iso ? Math.floor((Date.now() - Date.parse(iso + "T00:00:00Z")) / 864e5) : null;
-  const short = (iso) => iso ? new Date(iso + "T00:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" }) : "–";
-  function rel(iso) {
-    const d = daysAgo(iso);
-    if (d === null) return "unknown";
-    return d <= 0 ? "today" : d === 1 ? "yesterday" : d + "d ago";
-  }
-  const isBaseline = (j) => j.first_seen <= baseline;
-  const addedText = (j) => isBaseline(j) ? `≤ ${short(baseline)}` : short(j.first_seen);
+  // ---- dates ---------------------------------------------------------------
+  const toMs = (s) => !s ? NaN : Date.parse(s.length === 10 ? s + "T00:00:00Z" : s);
+  const daysAgo = (s) => { const t = toMs(s); return isNaN(t) ? null : Math.floor((Date.now() - t) / 864e5); };
+  const short = (s) => isNaN(toMs(s)) ? "–" : new Date(toMs(s)).toLocaleDateString(undefined, { month: "short", day: "numeric", ...(s.length === 10 ? { timeZone: "UTC" } : {}) });
+  const rel = (s) => { const d = daysAgo(s); return d === null ? "unknown" : d <= 0 ? "today" : d === 1 ? "yesterday" : d + "d ago"; };
+  // Baseline jobs were already open when we started watching them, either on the very
+  // first run or when the feed widened (new roles, cities or sources): their real
+  // arrival date is unknown, so they're never NEW and show "≤ date".
+  const isBaseline = (j) => index && (j.baseline || j.first_seen <= index.tracking_since);
+  const baselineDate = (j) => j.baseline ? j.first_seen : index.tracking_since;
+  const addedText = (j) => isBaseline(j) ? `≤ ${short(baselineDate(j))}` : short(j.first_seen);
   const addedTitle = (j) => isBaseline(j)
-    ? `Already open when tracking started on ${short(baseline)}; the exact date it appeared is unknown.`
-    : `First appeared in the run on ${short(j.first_seen)}.`;
-  const sizeText = (j) => `${j.size} · ${j.open_roles.toLocaleString()} open role${j.open_roles === 1 ? "" : "s"}`;
-  const persist = () => write(KEY, saved);
-  const statusOf = (j) => saved.status[j.id] || (saved.mutedCompanies.includes(j.company) ? "hidden" : "");
+    ? `Already open when it was first tracked (${short(baselineDate(j))}); the exact date it appeared is unknown.`
+    : `First appeared ${new Date(toMs(j.first_seen)).toLocaleString()}.`;
+  function isNew(j) {
+    if (isBaseline(j)) return false;
+    if (prevSeen) return j.first_seen > prevSeen;
+    return (toMs(index.generated_at) - toMs(j.first_seen)) <= 26 * 36e5;  // first visit: last day
+  }
 
-  function chips(rowId, items, onToggle, isOn) {
+  // ---- profile -------------------------------------------------------------
+  function defaults() {
+    const d = (index && index.default_profile) || {};
+    return { roles: d.roles || [], city: d.city || "", places: d.places || ["city", "india", "remote"],
+             levels: d.levels || [], targets: d.targets || [] };
+  }
+  function normaliseProfile(p) {
+    const d = defaults();
+    p = { ...d, ...(p || {}) };
+    if (!Array.isArray(p.places)) p.places = d.places;
+    p.roles = (p.roles || []).filter(r => index.roles[r]);
+    if (!p.roles.length) p.roles = d.roles.filter(r => index.roles[r]);
+    if (p.city && !(p.city in index.cities)) p.city = "";
+    return p;
+  }
+  const placeOf = (j) => j.place !== "india" ? j.place : (profile.city && j.cities.includes(profile.city) ? "city" : "india");
+  const placeLabels = () => [
+    ...(profile.city ? [["city", profile.city]] : []),
+    ["india", profile.city ? "Other India" : "India"],
+    ["remote", "Remote"], ["abroad", "Abroad", "visa / relocation"]
+  ];
+  const isTarget = (j) => { const k = " " + companyKey(j.company) + " "; return targetKeys.some(t => k.includes(" " + t + " ")); };
+
+  function openSetup(first) {
+    const p = profile || defaults();
+    const rolesRow = $("f-roles"); rolesRow.innerHTML = "";
+    Object.entries(index.roles).forEach(([r, info]) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.dataset.role = r;
+      b.innerHTML = `${esc(r)}<span class="hint">${info.count.toLocaleString()}</span>`;
+      b.setAttribute("aria-pressed", p.roles.includes(r));
+      b.onclick = () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true");
+      rolesRow.appendChild(b);
+    });
+    $("f-city").innerHTML = `<option value="">No preference (all of India)</option>` +
+      Object.entries(index.cities).map(([c, n]) => `<option value="${esc(c)}">${esc(c)} (${n.toLocaleString()})</option>`).join("");
+    $("f-city").value = p.city || "";
+    const syncCity = () => {
+      const c = $("f-city").value;
+      $("f-l-city").hidden = !c;
+      $("f-p-city-name").textContent = c || "My city";
+      $("f-p-india-name").textContent = c ? "Other Indian cities" : "All of India";
+    };
+    $("f-city").onchange = syncCity; syncCity();
+    $("f-p-city").checked = p.places.includes("city");
+    $("f-p-india").checked = p.places.includes("india");
+    $("f-p-remote").checked = p.places.includes("remote");
+    $("f-p-abroad").checked = p.places.includes("abroad");
+    const lv = $("f-levels"); lv.innerHTML = "";
+    LEVELS.forEach(l => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.dataset.level = l; b.textContent = l;
+      b.setAttribute("aria-pressed", p.levels.includes(l));
+      b.onclick = () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true");
+      lv.appendChild(b);
+    });
+    $("f-targets").value = (p.targets || []).join(", ");
+    $("f-cancel").hidden = first;
+    $("setup").showModal();
+  }
+  $("setup").addEventListener("cancel", (e) => { if (!profile) e.preventDefault(); });
+  $("setup-form").addEventListener("submit", (e) => {
+    if (e.submitter && e.submitter.value === "cancel") return;
+    const pick = (row, attr) => [...$(row).querySelectorAll(`[data-${attr}][aria-pressed="true"]`)].map(b => b.dataset[attr]);
+    const roles = pick("f-roles", "role");
+    if (!roles.length) { e.preventDefault(); $("f-roles").scrollIntoView(); $("f-roles").style.outline = "2px solid var(--new)"; return; }
+    const city = $("f-city").value;
+    const places = [["city", city && $("f-p-city").checked], ["india", $("f-p-india").checked],
+      ["remote", $("f-p-remote").checked], ["abroad", $("f-p-abroad").checked]].filter(x => x[1]).map(x => x[0]);
+    profile = { roles, city, places: places.length ? places : ["india"], levels: pick("f-levels", "level"),
+      targets: $("f-targets").value.split(/[,\n]/).map(s => s.trim()).filter(Boolean) };
+    write(PROFILE, profile);
+    applyProfile();
+  });
+
+  // ---- data ----------------------------------------------------------------
+  async function loadRoles() {
+    $("results").innerHTML = `<div class="loading">Loading ${esc(profile.roles.join(", "))}…</div>`;
+    const files = profile.roles.map(r => index.roles[r].file);
+    const parts = await Promise.all(files.map(f =>
+      fetch("data/" + f + "?v=" + encodeURIComponent(index.generated_at)).then(r => r.ok ? r.json() : { jobs: [] }).catch(() => ({ jobs: [] }))));
+    const byId = new Map();
+    parts.forEach(p => p.jobs.forEach(j => byId.set(j.id, j)));
+    jobs = [...byId.values()];
+    jobs.forEach(j => { j.support ||= []; j.stack ||= []; j.cities ||= []; j.open_roles ??= 0; });
+  }
+
+  async function applyProfile() {
+    profile = normaliseProfile(profile);
+    targetKeys = profile.targets.map(companyKey).filter(Boolean);
+    state.place = new Set(profile.places);
+    state.level = new Set(profile.levels);
+    state.shown = PAGE;
+    $("setupbar").hidden = false;
+    const where = profile.places.map(p => (placeLabels().find(x => x[0] === p) || [p, p])[1]).join(", ");
+    $("setup-summary").innerHTML = `Showing <b>${esc(profile.roles.join(", "))}</b> · <b>${esc(where)}</b>` +
+      (profile.levels.length ? ` · <b>${esc(profile.levels.join(", "))}</b>` : "");
+    await loadRoles();
+    buildFilters();
+    render();
+  }
+
+  // ---- filters -------------------------------------------------------------
+  function chips(rowId, items, set, onToggle) {
     const row = $(rowId);
+    row.querySelectorAll(".chip").forEach(b => b.remove());
     items.forEach(([val, label, hint]) => {
       const b = document.createElement("button");
-      b.className = "chip"; b.dataset.chip = rowId;
+      b.className = "chip";
       b.innerHTML = esc(label) + (hint ? `<span class="hint">${esc(hint)}</span>` : "");
-      b.setAttribute("aria-pressed", "false");
-      b.onclick = () => { onToggle(val); b.setAttribute("aria-pressed", isOn(val)); state.shown = PAGE; render(); };
+      const on = () => onToggle ? onToggle.isOn() : set.has(val);
+      b.setAttribute("aria-pressed", on());
+      b.onclick = () => {
+        if (onToggle) onToggle.toggle(); else set.has(val) ? set.delete(val) : set.add(val);
+        b.setAttribute("aria-pressed", on()); state.shown = PAGE; render();
+      };
       row.appendChild(b);
     });
   }
-  const toggler = (set) => [(v) => set.has(v) ? set.delete(v) : set.add(v), (v) => set.has(v)];
+  function buildFilters() {
+    const count = (fn) => jobs.filter(fn).length;
+    chips("row-place", placeLabels().map(([k, l, h]) => [k, l, h || String(count(j => placeOf(j) === k))]), state.place);
+    chips("row-support", SUPPORT.map(([k, l]) => [k, l, String(count(j => j.support.includes(k)))]), state.support);
+    const b = index.size_buckets || { Startup: 25, "Mid-size": 250 };
+    const hint = { Startup: `<${b.Startup}`, "Mid-size": `<${b["Mid-size"]}`, Large: `${b["Mid-size"]}+` };
+    chips("row-company", [["__t", "★ Targets", String(count(isTarget))]], null,
+      { toggle: () => { state.targets = !state.targets; }, isOn: () => state.targets });
+    const row = $("row-company"); const tchip = row.querySelector(".chip");
+    if (!targetKeys.length) { tchip.title = "Add target companies in Edit my setup"; }
+    SIZES.map(s => [s, s, hint[s] + " roles"]).forEach(([val, label, h]) => {
+      const bb = document.createElement("button");
+      bb.className = "chip"; bb.innerHTML = esc(label) + `<span class="hint">${esc(h)}</span>`;
+      bb.setAttribute("aria-pressed", state.size.has(val));
+      bb.onclick = () => { state.size.has(val) ? state.size.delete(val) : state.size.add(val); bb.setAttribute("aria-pressed", state.size.has(val)); state.shown = PAGE; render(); };
+      row.appendChild(bb);
+    });
+    chips("row-level", LEVELS.map(l => [l, l]), state.level);
+    const stacks = {};
+    jobs.forEach(j => j.stack.forEach(s => stacks[s] = (stacks[s] || 0) + 1));
+    chips("row-stack", Object.entries(stacks).sort((a, b) => b[1] - a[1]).map(([s]) => [s, s]), state.stack);
+    const sources = [...new Set(jobs.map(j => j.ats))].sort();
+    $("src").innerHTML = `<option value="">All sources</option>` + sources.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
+    $("src").value = sources.includes(state.src) ? state.src : "";
+  }
 
+  const statusOf = (j) => saved.status[j.id] || (saved.mutedCompanies.includes(j.company) ? "hidden" : "");
   function matches(j) {
     const st = statusOf(j);
     if (state.tab === "inbox" ? st !== "" : st !== state.tab) return false;
     if (state.q) {
-      const hay = (j.title + " " + j.company + " " + (j.department || "") + " " + j.location).toLowerCase();
+      const hay = (j.title + " " + j.company + " " + j.location + " " + j.cities.join(" ")).toLowerCase();
       if (!state.q.split(/\s+/).every(w => hay.includes(w))) return false;
     }
     if (state.src && j.ats !== state.src) return false;
-    if (state.targets && !j.target) return false;
-    // Abroad jobs only show when asked for, so the default view stays India + remote.
-    if (state.place.size ? !state.place.has(j.place) : j.place === "abroad") return false;
-    if (state.support.size && !j.support.some(s => state.support.has(s))) return false;
+    if (state.targets && !isTarget(j)) return false;
+    if (state.place.size && !state.place.has(placeOf(j))) return false;
     if (state.level.size && !state.level.has(j.level)) return false;
     if (state.size.size && !state.size.has(j.size)) return false;
+    if (state.support.size && !j.support.some(s => state.support.has(s))) return false;
     if (state.stack.size && !j.stack.some(s => state.stack.has(s))) return false;
     if (state.posted) { const d = daysAgo(j.posted_at); if (d !== null && d > state.posted) return false; }
     if (state.added !== "0") {
-      if (isBaseline(j)) return false;
-      if (state.added === "latest" ? j.first_seen !== newestSeen : daysAgo(j.first_seen) > +state.added) return false;
+      if (state.added === "visit") { if (!isNew(j)) return false; }
+      else if (isBaseline(j) || (toMs(index.generated_at) - toMs(j.first_seen)) > (+state.added * 864e5 + 2 * 36e5)) return false;
     }
     return true;
   }
-
   function sorted(list) {
     const val = {
-      added: (j) => j.first_seen || "", posted: (j) => j.posted_at || "", company: (j) => j.company.toLowerCase(),
+      added: (j) => isBaseline(j) ? "" : j.first_seen || "", posted: (j) => j.posted_at || "", company: (j) => j.company.toLowerCase(),
       title: (j) => j.title.toLowerCase(), location: (j) => j.location.toLowerCase(), size: (j) => j.open_roles
     }[state.sortKey];
-    const dir = state.sortDir;
     return list.slice().sort((a, b) => {
-      const x = val(a), y = val(b);
-      const c = x < y ? -1 : x > y ? 1 : 0;
-      return c * dir || (b.posted_at || "").localeCompare(a.posted_at || "");
+      const x = val(a), y = val(b), c = x < y ? -1 : x > y ? 1 : 0;
+      return c * state.sortDir || (b.posted_at || "").localeCompare(a.posted_at || "");
     });
   }
 
+  // ---- rendering -----------------------------------------------------------
+  const sizeText = (j) => `${j.size} · ${j.open_roles.toLocaleString()} open role${j.open_roles === 1 ? "" : "s"}`;
   const actBtns = (j, st) => ["saved:Save", "applied:Applied", "hidden:Hide"].map(s => {
     const [k, l] = s.split(":");
     return `<button class="act ${st === k ? "on" : ""}" data-id="${esc(j.id)}" data-act="${k}">${l}</button>`;
   }).join("");
-  const newBadge = (j) => hasNew && j.first_seen === newestSeen ? '<span class="badge">NEW</span>' : "";
-  const company = (j) => `${j.target ? '<span class="star" title="On your target list">★</span>' : ""}${esc(j.company)}`;
+  const newBadge = (j) => isNew(j) ? '<span class="badge">NEW</span>' : "";
+  const company = (j) => `${isTarget(j) ? '<span class="star" title="On your target list">★</span>' : ""}${esc(j.company)}`;
+  const locHTML = (j) => `<span title="${esc(j.location_full || j.location)}">${esc(j.location)}</span>`;
 
   function cardHTML(j) {
     const st = statusOf(j);
@@ -297,7 +509,7 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
     return `<div class="job ${st}">
       <div>
         <a class="title" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>${newBadge(j)}
-        <div class="meta"><span class="co">${company(j)}</span><span title="Hiring volume across all locations">${esc(sizeText(j))}</span><span title="${esc(j.location_full || j.location)}">${esc(j.location)}</span>${j.salary ? `<span>${esc(j.salary)}</span>` : ""}</div>
+        <div class="meta"><span class="co">${company(j)}</span><span title="Hiring volume across all locations">${esc(sizeText(j))}</span>${locHTML(j)}${j.salary ? `<span>${esc(j.salary)}</span>` : ""}</div>
         <div class="meta dates"><span title="${esc(j.posted_at || "")}">Posted <b>${short(j.posted_at)}</b> (${rel(j.posted_at)})</span>
           <span title="${esc(addedTitle(j))}">Added <b>${addedText(j)}</b></span><span>${esc(j.ats)}</span></div>
         <div class="tags">${tags}</div>
@@ -306,7 +518,6 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
         <button class="act" data-company="${esc(j.company)}" title="Hide every role from this company">${saved.mutedCompanies.includes(j.company) ? "Unmute co." : "Mute co."}</button></div>
     </div>`;
   }
-
   function tableHTML(rows) {
     const col = (key, label) => {
       const on = state.sortKey === key;
@@ -318,7 +529,7 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
         <td>${company(j)}</td>
         <td><a class="title" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>${newBadge(j)}
           ${j.stack.length ? `<div class="muted" style="font-size:12px">${esc(j.stack.join(" · "))}</div>` : ""}</td>
-        <td title="${esc(j.location_full || j.location)}">${esc(j.location)}${j.support.length ? `<div><span class="tag sup">${esc(j.support.join(" · "))}</span></div>` : ""}</td>
+        <td>${locHTML(j)}${j.support.length ? `<div><span class="tag sup">${esc(j.support.join(" · "))}</span></div>` : ""}</td>
         <td class="nowrap" title="${esc(sizeText(j))}">${esc(j.size)} <span class="muted">${j.open_roles.toLocaleString()}</span></td>
         <td class="num" title="${esc(rel(j.posted_at))}">${short(j.posted_at)}</td>
         <td class="num" title="${esc(addedTitle(j))}">${addedText(j)}</td>
@@ -329,37 +540,39 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
       <thead><tr>${col("company", "Company")}${col("title", "Role")}${col("location", "Location")}${col("size", "Size")}${col("posted", "Posted")}${col("added", "Added")}<th>Status</th></tr></thead>
       <tbody>${body}</tbody></table></div>`;
   }
-
   function syncSortSelect() {
-    const match = Object.entries(SORTS).find(([, [k, d]]) => k === state.sortKey && d === state.sortDir);
-    $("sort").value = match ? match[0] : "";
+    const m = Object.entries(SORTS).find(([, [k, d]]) => k === state.sortKey && d === state.sortDir);
+    $("sort").value = m ? m[0] : "";
   }
-
   function render() {
+    if (!profile || !index) return;
     const counts = { inbox: 0, saved: 0, applied: 0, hidden: 0 };
-    data.jobs.forEach(j => counts[statusOf(j) || "inbox"]++);
+    jobs.forEach(j => counts[statusOf(j) || "inbox"]++);
     $("tabs").innerHTML = TABS.map(([k, l]) =>
       `<button class="tab" role="tab" data-tab="${k}" aria-selected="${state.tab === k}">${l}<small>${counts[k]}</small></button>`).join("");
+    $("s-total").textContent = jobs.length.toLocaleString();
+    $("s-new").textContent = jobs.filter(isNew).length.toLocaleString();
+    $("s-new-label").textContent = prevSeen ? `new since your last visit (${short(prevSeen)})` : "new in the last day";
     $("s-saved").textContent = counts.saved;
     $("s-applied").textContent = counts.applied;
     $("v-cards").setAttribute("aria-pressed", state.view === "cards");
     $("v-table").setAttribute("aria-pressed", state.view === "table");
     syncSortSelect();
-
-    const list = sorted(data.jobs.filter(matches));
+    const list = sorted(jobs.filter(matches));
     const page = list.slice(0, state.shown);
     $("count").textContent = `${list.length.toLocaleString()} role${list.length === 1 ? "" : "s"}`;
-    let empty = state.tab === "inbox" ? "Nothing matches these filters. Try widening the date range." : "Nothing here yet.";
-    if (state.added !== "0" && !hasNew) empty = `Tracking started ${short(baseline)}. Jobs that appear after that will show up here from the next run.`;
+    const empty = state.tab === "inbox" ? "Nothing matches these filters. Try Reset filters or Edit my setup." : "Nothing here yet.";
     $("results").innerHTML = !list.length ? `<div class="empty">${esc(empty)}</div>`
       : state.view === "table" ? tableHTML(page) : `<div class="list">${page.map(cardHTML).join("")}</div>`;
     $("more").hidden = list.length <= state.shown;
     $("more").textContent = `Show more (${(list.length - state.shown).toLocaleString()} left)`;
   }
 
+  // ---- events --------------------------------------------------------------
+  const persist = () => write(KEY, saved);
   document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-tab],[data-act],[data-company],[data-sort]");
-    if (!t) return;
+    if (!t || t.closest("dialog")) return;
     if (t.dataset.tab) { state.tab = t.dataset.tab; state.shown = PAGE; }
     else if (t.dataset.sort) {
       const k = t.dataset.sort;
@@ -376,7 +589,6 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
     }
     render();
   });
-
   const on = (id, fn) => { $(id).onchange = $(id).oninput = (e) => { fn(e.target.value); state.shown = PAGE; render(); }; };
   on("q", (v) => state.q = v.trim().toLowerCase());
   on("posted", (v) => state.posted = +v);
@@ -387,70 +599,107 @@ tr.saved td:first-child { box-shadow: inset 3px 0 var(--new); }
   $("v-cards").onclick = () => setView("cards");
   $("v-table").onclick = () => setView("table");
   $("more").onclick = () => { state.shown += PAGE; render(); };
+  $("edit-setup").onclick = () => openSetup(false);
   $("reset").onclick = () => {
     Object.assign(state, { q: "", src: "", posted: 0, added: "0", targets: false, shown: PAGE });
     $("q").value = ""; $("src").value = ""; $("posted").value = "0"; $("added").value = "0";
-    [state.place, state.level, state.stack, state.size, state.support].forEach(s => s.clear());
-    document.querySelectorAll(".chip[aria-pressed]").forEach(b => b.setAttribute("aria-pressed", "false"));
-    render();
+    [state.stack, state.size, state.support].forEach(s => s.clear());
+    state.place = new Set(profile.places); state.level = new Set(profile.levels);
+    buildFilters(); render();
+  };
+
+  // ---- backup + sync -------------------------------------------------------
+  const bundle = () => ({ v: 1, profile, status: saved.status, mutedCompanies: saved.mutedCompanies });
+  function mergeBundle(b) {
+    if (b.profile) { profile = b.profile; write(PROFILE, profile); }
+    saved.status = { ...saved.status, ...(b.status || {}) };
+    saved.mutedCompanies = [...new Set([...saved.mutedCompanies, ...(b.mutedCompanies || [])])];
+    persist();
+  }
+  const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const unb64url = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
+  async function encodeSync(obj) {
+    const raw = new TextEncoder().encode(JSON.stringify(obj));
+    if (window.CompressionStream) {
+      const buf = await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer();
+      return "z" + b64url(buf);
+    }
+    return "j" + b64url(raw);
+  }
+  async function decodeSync(code) {
+    const bytes = unb64url(code.slice(1));
+    const raw = code[0] === "z"
+      ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer()
+      : bytes;
+    return JSON.parse(new TextDecoder().decode(raw));
+  }
+  $("sync").onclick = async () => {
+    const link = location.origin + location.pathname + "#sync=" + await encodeSync(bundle());
+    $("synctext").value = link;
+    $("syncmsg").textContent = "";
+    $("syncdlg").showModal();
+    $("synctext").select();
+    try { await navigator.clipboard.writeText(link); $("syncmsg").textContent = "Copied to your clipboard."; }
+    catch { $("syncmsg").textContent = "Select the link above and copy it."; }
   };
   $("export").onclick = () => {
-    const blob = new Blob([JSON.stringify(saved, null, 2)], { type: "application/json" });
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "job-radar-statuses.json" });
+    const blob = new Blob([JSON.stringify(bundle(), null, 2)], { type: "application/json" });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "job-radar-backup.json" });
     a.click(); URL.revokeObjectURL(a.href);
   };
   $("import").onclick = () => $("importFile").click();
   $("importFile").onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
-    try {
-      const incoming = JSON.parse(await f.text());
-      saved.status = { ...saved.status, ...(incoming.status || {}) };
-      saved.mutedCompanies = [...new Set([...saved.mutedCompanies, ...(incoming.mutedCompanies || [])])];
-      persist(); render();
-    } catch { $("foot-src").textContent = "That file isn't a Job Radar export."; }
+    try { mergeBundle(JSON.parse(await f.text())); notice("Backup imported."); await applyProfile(); }
+    catch { notice("That file isn't a Job Radar backup."); }
   };
+  function notice(text) { $("notice").hidden = false; $("notice").textContent = text; }
 
-  function boot(payload) {
-    data = payload;
-    data.jobs.forEach(j => { j.open_roles ??= 0; j.size ??= "Unknown"; j.target ??= false; j.support ??= []; });
-    newestSeen = data.jobs.reduce((m, j) => (j.first_seen > m ? j.first_seen : m), "");
-    baseline = data.tracking_since || data.jobs.reduce((m, j) => (!m || j.first_seen < m ? j.first_seen : m), "");
-    hasNew = newestSeen > baseline;
-    $("s-total").textContent = data.total.toLocaleString();
-    $("s-new").textContent = hasNew ? (data.new_today || 0).toLocaleString() : "–";
-    const when = new Date(data.generated_at);
-    $("updated").textContent = "Updated " + when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
-      + (data.snapshot_at ? " · data from " + new Date(data.snapshot_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "");
-    if (!hasNew) {
-      $("notice").hidden = false;
-      $("notice").textContent = `Tracking started ${short(baseline)}. Jobs already open then show “Added ≤ ${short(baseline)}”; from the next run, new jobs get their real added date and a NEW badge.`;
+  // ---- boot ----------------------------------------------------------------
+  async function boot() {
+    let syncedFromLink = false;
+    if (location.hash.startsWith("#sync=")) {
+      try { mergeBundle(await decodeSync(location.hash.slice(6))); syncedFromLink = true; }
+      catch { notice("That sync link couldn't be read. Make sure it was copied completely."); }
+      history.replaceState(null, "", location.pathname + location.search);
     }
-    $("foot-src").textContent = Object.entries(data.counts || {}).map(([k, v]) => `${k} ${v.toLocaleString()}`).join(" · ");
-    const sources = [...new Set(data.jobs.map(j => j.ats))].sort();
-    $("src").insertAdjacentHTML("beforeend", sources.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join(""));
-
-    const b = data.size_buckets || { Startup: 25, "Mid-size": 250 };
-    const sizeHint = { Startup: `<${b.Startup}`, "Mid-size": `<${b["Mid-size"]}`, Large: `${b["Mid-size"]}+` };
-    const targetCount = data.jobs.filter(j => j.target).length;
-    chips("row-place", PLACES, ...toggler(state.place));
-    const supCount = (k) => String(data.jobs.filter(j => j.support.includes(k)).length);
-    chips("row-support", SUPPORT.map(([k, l]) => [k, l, supCount(k)]), ...toggler(state.support));
-    chips("row-company", [["__t", "★ Targets", String(targetCount)]],
-      () => { state.targets = !state.targets; }, () => state.targets);
-    chips("row-company", SIZES.map(s => [s, s, sizeHint[s] + " roles"]), ...toggler(state.size));
-    chips("row-level", LEVELS.map(l => [l, l]), ...toggler(state.level));
-    chips("row-stack", [...new Set(data.jobs.flatMap(j => j.stack))].sort().map(s => [s, s]), ...toggler(state.stack));
-    render();
-  }
-
-  if (window.JOB_RADAR_DATA) boot(window.JOB_RADAR_DATA);
-  else fetch("data/jobs.json", { cache: "no-store" })
-    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(boot)
-    .catch(() => {
+    try {
+      const r = await fetch("data/index.json", { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      index = await r.json();
+    } catch {
       $("updated").textContent = "No data yet";
       $("results").innerHTML = '<div class="empty">The feed hasn\'t been built yet. Run the “Job Radar” workflow in the Actions tab.</div>';
-    });
+      return;
+    }
+    // A phone can keep an old copy of this page; reload once when a newer one is live.
+    if (APP_VERSION !== "__APP_VERSION__" && index.app_version && index.app_version !== "dev" && index.app_version !== APP_VERSION) {
+      if (sget("jobradar.reloadedFor") !== index.app_version) {
+        sset("jobradar.reloadedFor", index.app_version);
+        location.reload();
+        return;
+      }
+    }
+    // "New since your last visit": remember the feed time from the previous visit for this whole
+    // session (so reloading doesn't clear the badges), then mark this feed as seen.
+    let prev = sget("jobradar.prevSeen");
+    if (prev === null) {
+      const last = read(LAST);                      // feed you saw on your previous visit
+      prev = last === index.generated_at ? (read(LAST + ".before") || "") : (last || "");
+      sset("jobradar.prevSeen", prev);
+    }
+    prevSeen = prev || null;
+    const last = read(LAST);
+    if (last !== index.generated_at) { if (last) write(LAST + ".before", last); write(LAST, index.generated_at); }
+
+    const fmt = (s) => new Date(toMs(s)).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    $("updated").textContent = "Updated " + fmt(index.generated_at) + (index.snapshot_at ? " · data from " + fmt(index.snapshot_at) : "");
+    $("foot-src").textContent = `${index.total.toLocaleString()} roles across ${Object.keys(index.counts || {}).length} sources`;
+    if (syncedFromLink) notice("Your setup and statuses were copied from the link.");
+    if (!profile) { profile = null; openSetup(true); return; }
+    await applyProfile();
+  }
+  boot();
 })();
 </script>
 </body>

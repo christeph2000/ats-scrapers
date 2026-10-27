@@ -1,12 +1,18 @@
 # Job Radar
 
-A personal job dashboard built on the hosted ats-scrapers dataset.
+A job dashboard for engineers in India, built on the hosted ats-scrapers
+dataset.
 
-Every day the **Job Radar** workflow does three things. It downloads the
-slices of the dataset listed under `sources`: about 37 ATS platforms,
-big-tech career APIs and startup boards. It keeps the roles that
-match `config.json`. Then it publishes a static page to GitHub Pages. There is
-no server, database or API key.
+Twice a day the **Job Radar** workflow downloads the slices of the dataset
+listed under `sources` (about 37 ATS platforms, big-tech career APIs and
+startup boards). It keeps engineering roles in India, remote roles you can do
+from India, and jobs abroad that offer visa sponsorship or relocation. Then it
+publishes a static site to GitHub Pages. There is no server, database or API
+key.
+
+Each visitor picks their own **roles, city, default locations, experience
+levels and target companies** in *Edit my setup*. That's stored only in their
+browser, and the page downloads only the role files they picked.
 
 ## One-time setup
 
@@ -26,30 +32,35 @@ Edit `config.json` and push. The keys:
 | Key | What it does |
 |---|---|
 | `sources` | Which dataset slices to pull (see the [live manifest](https://storage.stapply.ai/jobhive/v1/manifest.json) for all of them). A source that fails to download is skipped with a warning. |
-| `title_include` / `title_exclude` | Whole-word title keywords. A role must hit one include term and no exclude term. |
-| `india_terms`, `home_city_terms` | Locations kept, and which ones count as "Bengaluru". |
+| `roles` | Role name → whole-word title keywords. A job can be in several roles. `fallback: true` ("Software engineer (general)") only applies when no specific role matched. |
+| `title_exclude` | Title phrases that are never engineering roles (sales engineer, recruiter …). |
+| `cities`, `india_terms` | City name → spellings; these become the city picker. Any of them, or `india_terms`, makes a job count as India. |
 | `include_remote` | Keep remote roles you can do from India (see below). |
 | `include_abroad_with_support` | Keep jobs outside India when they offer visa sponsorship or relocation. They show under **Where → Abroad**. |
 | `stack_tags` | Tags detected from the title and description. These become the Stack filter. |
-| `target_companies` | Companies marked ★ on the page, with a ★ Targets filter. Matches whole words, so "UiPath" also matches "UiPath India". |
 | `size_buckets` | Thresholds for the Company size filter (see below). |
 | `max_age_days`, `max_jobs` | Drops stale postings and caps the feed size. |
+| `remember_missing_days` | How long a job that vanished is remembered, so it keeps its Added time if it comes back. |
+| `default_profile` | The setup a first-time visitor starts from. |
 
 ## Dates: Posted vs Added
 
 - **Posted** is the employer's own publish date from the ATS: Greenhouse
   `first_published`, Lever `createdAt`, Ashby `publishedAt`. Reposted jobs
   get a fresh date, so they can look new.
-- **Added** is the run in which the job first showed up in *your* feed. Each
-  run reads the previously published `jobs.json` and carries those dates
-  forward. Jobs that were already open on the first run show **≤ <start date>**,
-  because their real arrival date is unknown. **NEW** marks jobs added in
-  the latest run.
+- **Added** is when the job first showed up in the feed. Each run reads the
+  previously published `data/seen.json` and carries those times forward. Jobs
+  that were already open on the first run show **≤ <start date>**, because
+  their real arrival date is unknown.
+- **NEW** means new *since your last visit* on that browser (on a first visit:
+  added in the last day). Reloading the page doesn't clear the badges.
 - If the previous feed can't be read (anything other than "not published
-  yet"), the build fails rather than resetting every Added date.
+  yet"), the build fails rather than resetting every Added time.
 
 The hosted dataset is rebuilt about once a day (around 20:00 IST), so the
-workflow runs at 21:37 IST to pick it up, plus a 06:47 IST catch-up run.
+workflow is scheduled for 21:37 IST, plus a 06:47 IST catch-up. GitHub often
+starts scheduled runs 1–4 hours late; the page header shows when it last
+updated.
 
 ## Company size
 
@@ -75,17 +86,24 @@ handled ("visa sponsorship is not available", "unable to sponsor"). It's
 keyword-based, so always confirm on the posting. The cases are covered by
 `test_build_jobs.py`, which runs before every build.
 
-## Your statuses
+## Your setup and statuses
 
-Saved, Applied, Hide and Mute company are stored in your browser
-(`localStorage`). They are per device. Use **Export / Import** at the bottom
-of the page to move them between your laptop and phone.
+Your setup and your Saved / Applied / Hidden / muted companies are stored in
+your browser (`localStorage`), so each person, and each device, has their own.
+To move them to another device, use **Copy to another device** at the bottom
+of the page: it makes a link that copies everything when opened there. (Real
+sync across devices needs accounts and a backend; that's a later step.)
+**Export / Import backup** does the same with a file.
+
+When a new version of the page is deployed, a phone that cached the old one
+reloads itself once.
 
 ## Check without publishing
 
 Actions → Job Radar → Run workflow → tick **dry_run**. It builds the feed and
-posts a summary (counts per source and place, top remote/abroad locations) on
-the run page, without deploying.
+posts a summary on the run page without deploying: totals per role, place
+and city, plus a per-source funnel (rows → title hint → role match → in scope
+→ kept after the age limit). A big source that yields nothing is flagged as a warning.
 
 ## Run locally
 

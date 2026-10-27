@@ -1,8 +1,16 @@
-"""Build the personal job dashboard feed.
+"""Build the Job Radar feed.
 
 Downloads slices of the hosted ats-scrapers dataset (the sources listed in
-``config.json``), keeps the roles that match the config, and writes a compact
-``jobs.json`` for the static dashboard in ``dashboard/site``.
+``config.json``), keeps engineering roles in India, remote-from-India, or abroad
+with visa/relocation support, and writes a static feed for ``dashboard/site``:
+
+* ``data/index.json``        metadata: counts, roles, cities, per-source funnel
+* ``data/roles/<role>.json`` the jobs for one role (a job can be in several)
+* ``data/seen.json``         first/last-seen times per job, read by the next run
+
+Each visitor picks their own roles, city and levels on the page, which then
+loads only the role files it needs. Nothing about a visitor leaves their
+browser.
 
 Run locally:
 
@@ -11,18 +19,18 @@ Run locally:
 
 Where a job can be done from ("place"):
 
-* ``home`` / ``india``: the location names an Indian city (or India itself).
+* ``india``: the location names an Indian city or India (``cities`` lists the
+  cities found).
 * ``remote``: the location is just "Remote" (or names APAC / Asia /
   worldwide) and the description does not restrict it to another region
   (for example "must be based in the US").
 * ``abroad``: anywhere else, kept only when the description offers visa
-  sponsorship or relocation support.
+  sponsorship, or relocation outside the US.
 
-Everything else is dropped.
-
-Added dates: the previous feed (``--previous``) carries each job's first-seen
-date forward. Jobs present on the very first run form the baseline
-(``tracking_since``).
+Added times: ``seen.json`` from the previous run carries each job's first-seen
+time forward. Jobs present on the very first run form the baseline
+(``tracking_since``). A job that vanishes for a few days (say a source failed
+to download) keeps its original first-seen time when it comes back.
 
 Company size is approximated by hiring volume: how many roles the company has
 open across all downloaded sources. Thresholds are in ``size_buckets``.
@@ -31,6 +39,7 @@ open across all downloaded sources. Thresholds are in ``size_buckets``.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -66,7 +75,13 @@ WANTED_COLUMNS = [
 ]
 
 LEVEL_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("Staff+", re.compile(r"\b(staff|lead|principal)\b")),
+    (
+        "Intern/Fresher",
+        re.compile(
+            r"\b(intern|internship|apprentice|trainee|graduate|new grad|fresher|freshers)\b"
+        ),
+    ),
+    ("Staff+", re.compile(r"\b(staff|lead|principal|distinguished|architect)\b")),
     (
         "Senior",
         re.compile(r"\b(senior|sr\.?|sde[\s-]*(iii|3)|swe[\s-]*(iii|3)|engineer[\s-]*(iii|3))\b"),
@@ -210,13 +225,28 @@ def coarse_regex(terms: list[str]) -> str:
     return "(?i)(" + "|".join(re.escape(t) for t in cleaned) + ")"
 
 
+def slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
 class Matcher:
     def __init__(self, cfg: dict[str, Any]) -> None:
-        self.include = term_regex(cfg["title_include"])
-        self.exclude = term_regex(cfg["title_exclude"])
-        self.include_coarse = coarse_regex(cfg["title_include"])
-        self.india = term_regex(cfg["india_terms"])
-        self.home = term_regex(cfg.get("home_city_terms", []))
+        roles: dict[str, dict[str, Any]] = cfg["roles"]
+        self.roles = {
+            name: rx for name, spec in roles.items() if (rx := term_regex(spec["include"]))
+        }
+        # "General" (plain "Software Engineer") only applies when no specific role matched.
+        self.fallback_roles = [n for n, spec in roles.items() if spec.get("fallback")]
+        all_terms = [t for spec in roles.values() for t in spec["include"]]
+        self.include_coarse = coarse_regex(all_terms)
+        self.exclude = term_regex(cfg.get("title_exclude", []))
+        self.cities = {
+            name: rx for name, terms in cfg["cities"].items() if (rx := term_regex(terms))
+        }
+        india_terms = list(cfg.get("india_terms", [])) + [
+            t for terms in cfg["cities"].values() for t in terms
+        ]
+        self.india = term_regex(india_terms)
         self.include_remote = bool(cfg.get("include_remote", True))
         self.include_abroad = bool(cfg.get("include_abroad_with_support", True))
         self.tags = {
@@ -225,14 +255,23 @@ class Matcher:
             if (rx := term_regex(terms)) is not None
         }
 
-    def title_ok(self, title: str) -> bool:
+    def roles_for(self, title: str) -> list[str]:
         t = title.lower()
-        if self.include is None or not self.include.search(t):
-            return False
-        return not (self.exclude and self.exclude.search(t))
+        if self.exclude and self.exclude.search(t):
+            return []
+        found = [n for n, rx in self.roles.items() if rx.search(t)]
+        specific = [n for n in found if n not in self.fallback_roles]
+        return specific or found
+
+    def title_ok(self, title: str) -> bool:
+        return bool(self.roles_for(title))
 
     def is_india(self, location: str, country: str | None) -> bool:
         return country == "IN" or bool(self.india and self.india.search(location.lower()))
+
+    def cities_in(self, text: str) -> list[str]:
+        t = text.lower()
+        return [name for name, rx in self.cities.items() if rx.search(t)]
 
     def remote_ok(self, location: str, country: str | None, remote_flag: Any, desc: str) -> bool:
         """Remote from India: no other place named, no other region required."""
@@ -257,15 +296,16 @@ class Matcher:
         remote_flag: Any,
         desc: str,
         support: list[str],
-    ) -> str | None:
+    ) -> tuple[str, list[str]] | None:
+        """Return (place, cities) or None when the job is out of scope."""
         if self.is_india(location, country):
-            return "home" if self.home and self.home.search(location.lower()) else "india"
+            return "india", self.cities_in(location)
         if GENERIC_LOCATION.match(location) and self.india and self.india.search(desc):
-            return "home" if self.home and self.home.search(desc) else "india"
+            return "india", self.cities_in(desc)
         if self.include_remote and self.remote_ok(location, country, remote_flag, desc):
-            return "remote"
+            return "remote", []
         if self.include_abroad and self.abroad_ok(location, country, support):
-            return "abroad"
+            return "abroad", []
         return None
 
     @staticmethod
@@ -288,7 +328,7 @@ class Matcher:
 
     def display_location(self, location: str, place: str) -> str:
         """For multi-location postings, show the Indian locations first."""
-        if place not in ("home", "india") or self.india is None:
+        if place != "india" or self.india is None:
             return location
         parts = [p.strip() for p in re.split(r"\s*[;|]\s*|\s+/\s+", location) if p.strip()]
         if len(parts) <= 1:
@@ -326,19 +366,18 @@ def iso_date(value: Any) -> str | None:
     return iso_date(dt)
 
 
-def load_previous(source: str | None) -> dict[str, Any] | None:
-    """Return the previous feed, or None when there is genuinely none yet.
+# ---- history --------------------------------------------------------------
 
-    A missing feed (404 / no file) means this is the first run. Any other
-    failure aborts the build: silently starting fresh would reset every
-    job's "added" date and flood the dashboard with false NEW badges.
+
+def fetch_json(source: str) -> dict[str, Any] | None:
+    """Read JSON from a URL or path. None means "doesn't exist (yet)".
+
+    Any other failure raises: silently starting fresh would reset every job's
+    added time and flood the page with false NEW badges.
     """
-    if not source:
-        return None
     if source.startswith(("http://", "https://")):
-        resp = httpx.get(source, timeout=60, follow_redirects=True)
+        resp = httpx.get(source, timeout=120, follow_redirects=True)
         if resp.status_code == 404:
-            print("previous feed: not published yet, starting baseline", file=sys.stderr)
             return None
         resp.raise_for_status()
         data: dict[str, Any] = resp.json()
@@ -348,6 +387,63 @@ def load_previous(source: str | None) -> dict[str, Any] | None:
         return None
     loaded: dict[str, Any] = json.loads(path.read_text())
     return loaded
+
+
+def load_history(base: str | None) -> tuple[dict[str, list[str]], str | None, str | None]:
+    """Return ({job id: [first_seen, last_seen, ("b")]}, tracking_since, scope).
+
+    Reads ``seen.json`` from the last published site, falling back once to the
+    older single-file ``jobs.json`` layout. ``scope`` is the fingerprint of the
+    config that produced it (None for the old layout).
+    """
+    if not base:
+        return {}, None, None
+    base = base.rstrip("/")
+    seen = fetch_json(f"{base}/seen.json")
+    if seen is not None:
+        return dict(seen.get("jobs", {})), seen.get("tracking_since"), seen.get("scope")
+    legacy = fetch_json(f"{base}/jobs.json")
+    if legacy is None:
+        print("no previous feed: starting a new baseline", file=sys.stderr)
+        return {}, None, None
+    jobs = {j["id"]: [j["first_seen"], j["first_seen"]] for j in legacy.get("jobs", [])}
+    since = legacy.get("tracking_since") or min((v[0] for v in jobs.values()), default=None)
+    return jobs, since, None
+
+
+SCOPE_KEYS = [
+    "sources",
+    "roles",
+    "title_exclude",
+    "india_terms",
+    "cities",
+    "include_remote",
+    "include_abroad_with_support",
+    "max_age_days",
+]
+
+
+def scope_fingerprint(cfg: dict[str, Any]) -> str:
+    """Fingerprint of the config keys that decide which jobs are in the feed."""
+    blob = json.dumps({k: cfg.get(k) for k in SCOPE_KEYS}, sort_keys=True)
+    return hashlib.sha1(blob.encode()).hexdigest()[:12]
+
+
+def apply_age_limit(found: list[dict[str, Any]], cutoff: str, source: str) -> list[dict[str, Any]]:
+    """Drop postings older than ``cutoff``, unless the source's dates are broken.
+
+    The dataset only holds jobs that are still open, so this only trims
+    long-running "evergreen" posts. When *every* dated job from a source is
+    older than the cutoff (seen with Keka and JOIN), the dates are wrong rather
+    than the jobs being old: keep them all and hide the dates instead.
+    """
+    dated = [j for j in found if j["posted_at"]]
+    if len(found) >= 20 and dated and all(j["posted_at"] < cutoff for j in dated):
+        print(f"::warning::{source}: every posted date is older than {cutoff}; ignoring its dates")
+        for j in found:
+            j["posted_at"] = None
+        return found
+    return [j for j in found if not j["posted_at"] or j["posted_at"] >= cutoff]
 
 
 def size_label(open_roles: int, buckets: dict[str, int]) -> str:
@@ -369,14 +465,24 @@ def download(url: str, dest: Path) -> None:
                 fh.write(chunk)
 
 
+# ---- scanning -------------------------------------------------------------
+
+FUNNEL_STEPS = ["rows", "title_hint", "role_match", "in_scope", "kept"]
+
+
 def scan(
-    path: Path, matcher: Matcher, cutoff: str, company_roles: dict[str, int]
+    path: Path,
+    matcher: Matcher,
+    company_roles: dict[str, int],
+    funnel: dict[str, int],
 ) -> list[dict[str, Any]]:
     """Scan one parquet slice row group by row group.
 
     Cheap columns (title, company) are read for every row to count company
     hiring volume and prefilter titles with pyarrow; the heavy columns
-    (description etc.) are only read for row groups that have candidates.
+    (description etc.) are only read for rows whose title might match.
+    ``funnel`` counts how many rows survive each step, so a source that
+    suddenly yields nothing can be told apart from one that failed.
     """
     pf = pq.ParquetFile(path)
     available = set(pf.schema_arrow.names)
@@ -385,6 +491,7 @@ def scan(
     out: list[dict[str, Any]] = []
     for rg in range(pf.num_row_groups):
         small = pf.read_row_group(rg, columns=light)
+        funnel["rows"] += small.num_rows
         if "company" in small.column_names:
             for item in pc.value_counts(small["company"]).to_pylist():
                 key = company_key(item["values"] or "")
@@ -392,86 +499,105 @@ def scan(
                     company_roles[key] = company_roles.get(key, 0) + int(item["counts"])
         titles = pc.fill_null(small["title"], "")
         mask = pc.match_substring_regex(titles, matcher.include_coarse)
-        if not pc.any(mask).as_py():
+        hits = pc.sum(mask).as_py() or 0
+        if not hits:
             continue
+        funnel["title_hint"] += hits
         rows = pf.read_row_group(rg, columns=heavy).filter(mask).to_pylist()
         for row in rows:
-            job = build_job(row, matcher, cutoff, path.stem)
+            job = build_job(row, matcher, path.stem, funnel)
             if job:
                 out.append(job)
     return out
 
 
 def build_job(
-    row: dict[str, Any], matcher: Matcher, cutoff: str, source: str
+    row: dict[str, Any],
+    matcher: Matcher,
+    source: str,
+    funnel: dict[str, int] | None = None,
 ) -> dict[str, Any] | None:
+    funnel = funnel if funnel is not None else dict.fromkeys(FUNNEL_STEPS, 0)
     title = SPACE_RE.sub(" ", row.get("title") or "").strip()
-    if not title or not matcher.title_ok(title):
+    roles = matcher.roles_for(title) if title else []
+    if not roles:
         return None
+    funnel["role_match"] += 1
     posted = iso_date(row.get("posted_at"))
-    if posted and posted < cutoff:
-        return None
     location = SPACE_RE.sub(" ", row.get("location") or "").strip()
     desc = clean_text(row.get("description") or "")
     support = support_tags(desc)
-    place = matcher.place(location, row.get("country_iso"), row.get("is_remote"), desc, support)
-    if place is None:
+    where = matcher.place(location, row.get("country_iso"), row.get("is_remote"), desc, support)
+    if where is None:
         return None
+    funnel["in_scope"] += 1
+    place, cities = where
     ats = row.get("ats_type") or source
     ats_id = row.get("ats_id")
-    return {
+    job: dict[str, Any] = {
         "id": f"{ats}:{ats_id}" if ats_id else row.get("url"),
         "title": title,
         "company": (row.get("company") or "").strip(),
         "ats": ats,
+        "roles": roles,
         "location": matcher.display_location(location, place)
-        or ("Remote" if place == "remote" else ""),
-        "location_full": location,
+        or ("Remote" if place == "remote" else "India" if place == "india" else ""),
         "place": place,
+        "cities": cities,
         "level": level_for(title),
         "stack": matcher.stack(f"{title.lower()} {desc}"),
         "support": support,
-        "department": row.get("department") or row.get("team") or None,
         "salary": row.get("salary_summary") or None,
         "posted_at": posted,
         "url": row.get("apply_url") or row.get("url"),
     }
+    if location and location != job["location"]:
+        job["location_full"] = location
+    return job
 
 
 def dedupe_key(job: dict[str, Any]) -> tuple[str, str, str]:
-    return (company_key(job["company"]), job["title"].lower(), job["location_full"].lower())
+    loc = job.get("location_full") or job["location"]
+    return (company_key(job["company"]), job["title"].lower(), loc.lower())
+
+
+# ---- main -----------------------------------------------------------------
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument("--config", default=str(HERE / "config.json"))
-    parser.add_argument("--out", default=str(HERE / "site" / "data" / "jobs.json"))
-    parser.add_argument("--previous", help="Path or URL of the last published jobs.json")
+    parser.add_argument("--out-dir", default=str(HERE / "site" / "data"))
+    parser.add_argument(
+        "--previous",
+        help="Base URL or folder of the last published data/ (for seen.json)",
+    )
     parser.add_argument(
         "--local-dir",
         help="Read <source>.parquet files from this folder instead of downloading (for testing)",
     )
+    parser.add_argument("--app-version", default="dev", help="Page version (e.g. the git sha)")
     args = parser.parse_args()
 
     cfg = json.loads(Path(args.config).read_text())
     matcher = Matcher(cfg)
-    today = datetime.now(UTC).date()
-    cutoff = (today - timedelta(days=int(cfg.get("max_age_days", 60)))).isoformat()
+    run_at = datetime.now(UTC).replace(second=0, microsecond=0)
+    run_stamp = run_at.isoformat().replace("+00:00", "Z")
+    cutoff = (run_at.date() - timedelta(days=int(cfg.get("max_age_days", 180)))).isoformat()
+    keep_seen_days = int(cfg.get("remember_missing_days", 30))
 
-    prev_feed = load_previous(args.previous)
-    previous: dict[str, str] = {
-        j["id"]: j["first_seen"] for j in (prev_feed or {}).get("jobs", []) if j.get("first_seen")
-    }
-    if prev_feed is None:
-        tracking_since = today.isoformat()
-    else:
-        tracking_since = prev_feed.get("tracking_since") or min(
-            previous.values(), default=today.isoformat()
-        )
+    history, tracking_since, prev_scope = load_history(args.previous)
+    is_baseline = tracking_since is None
+    tracking_since = tracking_since or run_stamp
+    scope = scope_fingerprint(cfg)
+    # When the config widens (new roles, cities, sources...), jobs that only now
+    # come into scope were usually open already: mark them as baseline, not NEW.
+    rescoped = not is_baseline and prev_scope != scope
+    if rescoped:
+        print("::notice::Feed scope changed: newly included jobs are marked as already open")
     buckets = {
         k: int(v) for k, v in cfg.get("size_buckets", {"Startup": 25, "Mid-size": 250}).items()
     }
-    targets = [company_key(t) for t in cfg.get("target_companies", []) if company_key(t)]
     company_roles: dict[str, int] = {}
 
     snapshot_at: str | None = None
@@ -480,19 +606,22 @@ def main() -> int:
         manifest = httpx.get(MANIFEST_URL, timeout=60, follow_redirects=True).json()
         snapshot_at = manifest.get("generated_at")
 
-    jobs: dict[tuple[str, str, str], dict[str, Any]] = {}
+    jobs: dict[str, dict[str, Any]] = {}
+    key_source: dict[tuple[str, str, str], str] = {}
     counts: dict[str, int] = {}
+    funnels: dict[str, dict[str, int]] = {}
     failed: list[str] = []
     with tempfile.TemporaryDirectory() as tmp:
         for source in cfg["sources"]:
+            entry: dict[str, Any] = {}
             if args.local_dir:
                 path = Path(args.local_dir) / f"{source}.parquet"
                 if not path.exists():
                     print(f"{source}: no local file, skipping", file=sys.stderr)
                     continue
             else:
-                entry = manifest.get("by_ats", {}).get(source)
-                if not entry or not entry.get("parquet") or not entry.get("rows"):
+                entry = manifest.get("by_ats", {}).get(source) or {}
+                if not entry.get("parquet") or not entry.get("rows"):
                     print(f"{source}: not in manifest or empty, skipping", file=sys.stderr)
                     continue
                 path = Path(tmp) / f"{source}.parquet"
@@ -504,8 +633,9 @@ def main() -> int:
                     print(f"::warning::{source}: download failed ({exc}), skipped")
                     failed.append(source)
                     continue
+            funnel = dict.fromkeys(FUNNEL_STEPS, 0)
             try:
-                found = scan(path, matcher, cutoff, company_roles)
+                found = scan(path, matcher, company_roles, funnel)
             except (OSError, pa.ArrowException) as exc:
                 print(f"::warning::{source}: could not read slice ({exc}), skipped")
                 failed.append(source)
@@ -513,51 +643,110 @@ def main() -> int:
             finally:
                 if not args.local_dir:
                     path.unlink(missing_ok=True)
-            counts[source] = len(found)
-            print(f"{source}: {len(found)} matching jobs", flush=True)
+            if entry.get("rows") and funnel["rows"] < 0.9 * int(entry["rows"]):
+                print(
+                    f"::warning::{source}: read {funnel['rows']} rows, manifest says {entry['rows']}"
+                )
+            found = apply_age_limit(found, cutoff, source)
+            funnel["kept"] = len(found)
+            funnels[source] = funnel
+            added = 0
             for job in found:
-                jobs.setdefault(dedupe_key(job), job)
+                key = dedupe_key(job)
+                # Same company + title + location from a *different* source is the
+                # same posting seen twice (e.g. on a job board and the ATS).
+                # Within one source they're separate openings, so keep both.
+                if key_source.get(key, job["ats"]) != job["ats"]:
+                    continue
+                key_source[key] = job["ats"]
+                if job["id"] not in jobs:
+                    jobs[job["id"]] = job
+                    added += 1
+            counts[source] = added
+            print(f"{source}: {added} jobs  funnel {funnel}", flush=True)
 
-    for job in jobs.values():
-        job["first_seen"] = previous.get(job["id"], today.isoformat())
-        key = company_key(job["company"])
-        roles = company_roles.get(key, 0)
-        job["open_roles"] = roles
-        job["size"] = size_label(roles, buckets)
-        padded = f" {key} "
-        job["target"] = any(f" {t} " in padded for t in targets)
-        if job["location_full"] == job["location"]:
-            del job["location_full"]
+    # Added times, company size.
+    seen_out: dict[str, list[str]] = {}
+    for jid, job in jobs.items():
+        prev = history.get(jid)
+        if prev:
+            first, flagged = prev[0], len(prev) > 2
+        else:
+            first, flagged = run_stamp, rescoped
+        job["first_seen"] = first
+        seen_out[jid] = [first, run_stamp, "b"] if flagged else [first, run_stamp]
+        if flagged:
+            job["baseline"] = True
+        roles_open = company_roles.get(company_key(job["company"]), 0)
+        job["open_roles"] = roles_open
+        job["size"] = size_label(roles_open, buckets)
+    # Remember jobs that disappeared recently, so a source that fails for a day
+    # doesn't make all of its jobs look new when it comes back.
+    forget_before = (run_at - timedelta(days=keep_seen_days)).isoformat().replace("+00:00", "Z")
+    for jid, entry in history.items():
+        if jid not in seen_out and entry[1] >= forget_before:
+            seen_out[jid] = entry
 
     ordered = sorted(
-        jobs.values(),
-        key=lambda j: (j["first_seen"], j["posted_at"] or ""),
-        reverse=True,
-    )[: int(cfg.get("max_jobs", 15000))]
+        jobs.values(), key=lambda j: (j["first_seen"], j["posted_at"] or ""), reverse=True
+    )[: int(cfg.get("max_jobs", 60000))]
 
-    places: dict[str, int] = {}
-    for j in ordered:
-        places[j["place"]] = places.get(j["place"], 0) + 1
-    print("by place:", places)
+    out = Path(args.out_dir)
+    (out / "roles").mkdir(parents=True, exist_ok=True)
+    for old in (out / "roles").glob("*.json"):
+        old.unlink()
 
-    out = Path(args.out)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+    def tally(key: str) -> dict[str, int]:
+        c: dict[str, int] = {}
+        for j in ordered:
+            vals = j[key] if isinstance(j[key], list) else [j[key]]
+            for v in vals:
+                c[v] = c.get(v, 0) + 1
+        return dict(sorted(c.items(), key=lambda kv: -kv[1]))
+
+    role_files: dict[str, dict[str, Any]] = {}
+    for role in cfg["roles"]:
+        subset = [j for j in ordered if role in j["roles"]]
+        fname = f"roles/{slug(role)}.json"
+        (out / fname).write_text(
+            json.dumps({"role": role, "jobs": subset}, ensure_ascii=False, separators=(",", ":"))
+        )
+        role_files[role] = {"file": fname, "count": len(subset)}
+
+    new_in_run = (
+        0
+        if is_baseline
+        else sum(1 for j in ordered if j["first_seen"] == run_stamp and not j.get("baseline"))
+    )
+    index = {
+        "generated_at": run_stamp,
         "snapshot_at": snapshot_at,
         "tracking_since": tracking_since,
+        "app_version": args.app_version,
         "size_buckets": buckets,
-        "counts": counts,
-        "failed_sources": failed,
-        "places": places,
+        "roles": role_files,
+        "cities": tally("cities"),
+        "places": tally("place"),
         "total": len(ordered),
-        "new_today": sum(
-            1 for j in ordered if j["first_seen"] == today.isoformat() > tracking_since
-        ),
-        "jobs": ordered,
+        "new_in_run": new_in_run,
+        "scope_changed": rescoped,
+        "counts": counts,
+        "funnel": funnels,
+        "failed_sources": failed,
+        "default_profile": cfg.get("default_profile", {}),
     }
-    out.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
-    print(f"wrote {len(ordered)} jobs to {out} ({out.stat().st_size / 1e6:.1f} MB)")
+    (out / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1))
+    (out / "seen.json").write_text(
+        json.dumps(
+            {"tracking_since": tracking_since, "scope": scope, "jobs": seen_out},
+            separators=(",", ":"),
+        )
+    )
+    legacy = out / "jobs.json"
+    legacy.unlink(missing_ok=True)
+
+    sizes = {r: f"{(out / f['file']).stat().st_size / 1e6:.1f}MB" for r, f in role_files.items()}
+    print(f"wrote {len(ordered)} jobs, {new_in_run} new; role files {sizes}")
     if failed and len(failed) == len(cfg["sources"]):
         print("every source failed", file=sys.stderr)
         return 1
