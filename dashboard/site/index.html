@@ -298,10 +298,14 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
   const daysAgo = (s) => { const t = toMs(s); return isNaN(t) ? null : Math.floor((Date.now() - t) / 864e5); };
   const short = (s) => isNaN(toMs(s)) ? "–" : new Date(toMs(s)).toLocaleDateString(undefined, { month: "short", day: "numeric", ...(s.length === 10 ? { timeZone: "UTC" } : {}) });
   const rel = (s) => { const d = daysAgo(s); return d === null ? "unknown" : d <= 0 ? "today" : d === 1 ? "yesterday" : d + "d ago"; };
-  const isBaseline = (j) => index && j.first_seen <= index.tracking_since;
-  const addedText = (j) => isBaseline(j) ? `≤ ${short(index.tracking_since)}` : short(j.first_seen);
+  // Baseline jobs were already open when we started watching them, either on the very
+  // first run or when the feed widened (new roles, cities or sources): their real
+  // arrival date is unknown, so they're never NEW and show "≤ date".
+  const isBaseline = (j) => index && (j.baseline || j.first_seen <= index.tracking_since);
+  const baselineDate = (j) => j.baseline ? j.first_seen : index.tracking_since;
+  const addedText = (j) => isBaseline(j) ? `≤ ${short(baselineDate(j))}` : short(j.first_seen);
   const addedTitle = (j) => isBaseline(j)
-    ? `Already open when tracking started (${short(index.tracking_since)}); the exact date it appeared is unknown.`
+    ? `Already open when it was first tracked (${short(baselineDate(j))}); the exact date it appeared is unknown.`
     : `First appeared ${new Date(toMs(j.first_seen)).toLocaleString()}.`;
   function isNew(j) {
     if (isBaseline(j)) return false;
@@ -478,7 +482,7 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
   }
   function sorted(list) {
     const val = {
-      added: (j) => j.first_seen || "", posted: (j) => j.posted_at || "", company: (j) => j.company.toLowerCase(),
+      added: (j) => isBaseline(j) ? "" : j.first_seen || "", posted: (j) => j.posted_at || "", company: (j) => j.company.toLowerCase(),
       title: (j) => j.title.toLowerCase(), location: (j) => j.location.toLowerCase(), size: (j) => j.open_roles
     }[state.sortKey];
     return list.slice().sort((a, b) => {

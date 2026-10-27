@@ -39,6 +39,7 @@ open across all downloaded sources. Thresholds are in ``size_buckets``.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -388,25 +389,61 @@ def fetch_json(source: str) -> dict[str, Any] | None:
     return loaded
 
 
-def load_history(base: str | None) -> tuple[dict[str, list[str]], str | None]:
-    """Return ({job id: [first_seen, last_seen]}, tracking_since).
+def load_history(base: str | None) -> tuple[dict[str, list[str]], str | None, str | None]:
+    """Return ({job id: [first_seen, last_seen, ("b")]}, tracking_since, scope).
 
     Reads ``seen.json`` from the last published site, falling back once to the
-    older single-file ``jobs.json`` layout.
+    older single-file ``jobs.json`` layout. ``scope`` is the fingerprint of the
+    config that produced it (None for the old layout).
     """
     if not base:
-        return {}, None
+        return {}, None, None
     base = base.rstrip("/")
     seen = fetch_json(f"{base}/seen.json")
     if seen is not None:
-        return dict(seen.get("jobs", {})), seen.get("tracking_since")
+        return dict(seen.get("jobs", {})), seen.get("tracking_since"), seen.get("scope")
     legacy = fetch_json(f"{base}/jobs.json")
     if legacy is None:
         print("no previous feed: starting a new baseline", file=sys.stderr)
-        return {}, None
+        return {}, None, None
     jobs = {j["id"]: [j["first_seen"], j["first_seen"]] for j in legacy.get("jobs", [])}
     since = legacy.get("tracking_since") or min((v[0] for v in jobs.values()), default=None)
-    return jobs, since
+    return jobs, since, None
+
+
+SCOPE_KEYS = [
+    "sources",
+    "roles",
+    "title_exclude",
+    "india_terms",
+    "cities",
+    "include_remote",
+    "include_abroad_with_support",
+    "max_age_days",
+]
+
+
+def scope_fingerprint(cfg: dict[str, Any]) -> str:
+    """Fingerprint of the config keys that decide which jobs are in the feed."""
+    blob = json.dumps({k: cfg.get(k) for k in SCOPE_KEYS}, sort_keys=True)
+    return hashlib.sha1(blob.encode()).hexdigest()[:12]
+
+
+def apply_age_limit(found: list[dict[str, Any]], cutoff: str, source: str) -> list[dict[str, Any]]:
+    """Drop postings older than ``cutoff``, unless the source's dates are broken.
+
+    The dataset only holds jobs that are still open, so this only trims
+    long-running "evergreen" posts. When *every* dated job from a source is
+    older than the cutoff (seen with Keka and JOIN), the dates are wrong rather
+    than the jobs being old: keep them all and hide the dates instead.
+    """
+    dated = [j for j in found if j["posted_at"]]
+    if len(found) >= 20 and dated and all(j["posted_at"] < cutoff for j in dated):
+        print(f"::warning::{source}: every posted date is older than {cutoff}; ignoring its dates")
+        for j in found:
+            j["posted_at"] = None
+        return found
+    return [j for j in found if not j["posted_at"] or j["posted_at"] >= cutoff]
 
 
 def size_label(open_roles: int, buckets: dict[str, int]) -> str:
@@ -430,13 +467,12 @@ def download(url: str, dest: Path) -> None:
 
 # ---- scanning -------------------------------------------------------------
 
-FUNNEL_STEPS = ["rows", "title_hint", "role_match", "recent", "kept"]
+FUNNEL_STEPS = ["rows", "title_hint", "role_match", "in_scope", "kept"]
 
 
 def scan(
     path: Path,
     matcher: Matcher,
-    cutoff: str,
     company_roles: dict[str, int],
     funnel: dict[str, int],
 ) -> list[dict[str, Any]]:
@@ -469,7 +505,7 @@ def scan(
         funnel["title_hint"] += hits
         rows = pf.read_row_group(rg, columns=heavy).filter(mask).to_pylist()
         for row in rows:
-            job = build_job(row, matcher, cutoff, path.stem, funnel)
+            job = build_job(row, matcher, path.stem, funnel)
             if job:
                 out.append(job)
     return out
@@ -478,7 +514,6 @@ def scan(
 def build_job(
     row: dict[str, Any],
     matcher: Matcher,
-    cutoff: str,
     source: str,
     funnel: dict[str, int] | None = None,
 ) -> dict[str, Any] | None:
@@ -489,16 +524,13 @@ def build_job(
         return None
     funnel["role_match"] += 1
     posted = iso_date(row.get("posted_at"))
-    if posted and posted < cutoff:
-        return None
-    funnel["recent"] += 1
     location = SPACE_RE.sub(" ", row.get("location") or "").strip()
     desc = clean_text(row.get("description") or "")
     support = support_tags(desc)
     where = matcher.place(location, row.get("country_iso"), row.get("is_remote"), desc, support)
     if where is None:
         return None
-    funnel["kept"] += 1
+    funnel["in_scope"] += 1
     place, cities = where
     ats = row.get("ats_type") or source
     ats_id = row.get("ats_id")
@@ -551,12 +583,18 @@ def main() -> int:
     matcher = Matcher(cfg)
     run_at = datetime.now(UTC).replace(second=0, microsecond=0)
     run_stamp = run_at.isoformat().replace("+00:00", "Z")
-    cutoff = (run_at.date() - timedelta(days=int(cfg.get("max_age_days", 60)))).isoformat()
+    cutoff = (run_at.date() - timedelta(days=int(cfg.get("max_age_days", 180)))).isoformat()
     keep_seen_days = int(cfg.get("remember_missing_days", 30))
 
-    history, tracking_since = load_history(args.previous)
+    history, tracking_since, prev_scope = load_history(args.previous)
     is_baseline = tracking_since is None
     tracking_since = tracking_since or run_stamp
+    scope = scope_fingerprint(cfg)
+    # When the config widens (new roles, cities, sources...), jobs that only now
+    # come into scope were usually open already: mark them as baseline, not NEW.
+    rescoped = not is_baseline and prev_scope != scope
+    if rescoped:
+        print("::notice::Feed scope changed: newly included jobs are marked as already open")
     buckets = {
         k: int(v) for k, v in cfg.get("size_buckets", {"Startup": 25, "Mid-size": 250}).items()
     }
@@ -597,7 +635,7 @@ def main() -> int:
                     continue
             funnel = dict.fromkeys(FUNNEL_STEPS, 0)
             try:
-                found = scan(path, matcher, cutoff, company_roles, funnel)
+                found = scan(path, matcher, company_roles, funnel)
             except (OSError, pa.ArrowException) as exc:
                 print(f"::warning::{source}: could not read slice ({exc}), skipped")
                 failed.append(source)
@@ -609,6 +647,8 @@ def main() -> int:
                 print(
                     f"::warning::{source}: read {funnel['rows']} rows, manifest says {entry['rows']}"
                 )
+            found = apply_age_limit(found, cutoff, source)
+            funnel["kept"] = len(found)
             funnels[source] = funnel
             added = 0
             for job in found:
@@ -628,18 +668,24 @@ def main() -> int:
     # Added times, company size.
     seen_out: dict[str, list[str]] = {}
     for jid, job in jobs.items():
-        first = history.get(jid, [run_stamp])[0]
+        prev = history.get(jid)
+        if prev:
+            first, flagged = prev[0], len(prev) > 2
+        else:
+            first, flagged = run_stamp, rescoped
         job["first_seen"] = first
-        seen_out[jid] = [first, run_stamp]
+        seen_out[jid] = [first, run_stamp, "b"] if flagged else [first, run_stamp]
+        if flagged:
+            job["baseline"] = True
         roles_open = company_roles.get(company_key(job["company"]), 0)
         job["open_roles"] = roles_open
         job["size"] = size_label(roles_open, buckets)
     # Remember jobs that disappeared recently, so a source that fails for a day
     # doesn't make all of its jobs look new when it comes back.
     forget_before = (run_at - timedelta(days=keep_seen_days)).isoformat().replace("+00:00", "Z")
-    for jid, (first, last) in history.items():
-        if jid not in seen_out and last >= forget_before:
-            seen_out[jid] = [first, last]
+    for jid, entry in history.items():
+        if jid not in seen_out and entry[1] >= forget_before:
+            seen_out[jid] = entry
 
     ordered = sorted(
         jobs.values(), key=lambda j: (j["first_seen"], j["posted_at"] or ""), reverse=True
@@ -667,7 +713,11 @@ def main() -> int:
         )
         role_files[role] = {"file": fname, "count": len(subset)}
 
-    new_in_run = 0 if is_baseline else sum(1 for j in ordered if j["first_seen"] == run_stamp)
+    new_in_run = (
+        0
+        if is_baseline
+        else sum(1 for j in ordered if j["first_seen"] == run_stamp and not j.get("baseline"))
+    )
     index = {
         "generated_at": run_stamp,
         "snapshot_at": snapshot_at,
@@ -679,6 +729,7 @@ def main() -> int:
         "places": tally("place"),
         "total": len(ordered),
         "new_in_run": new_in_run,
+        "scope_changed": rescoped,
         "counts": counts,
         "funnel": funnels,
         "failed_sources": failed,
@@ -686,7 +737,10 @@ def main() -> int:
     }
     (out / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1))
     (out / "seen.json").write_text(
-        json.dumps({"tracking_since": tracking_since, "jobs": seen_out}, separators=(",", ":"))
+        json.dumps(
+            {"tracking_since": tracking_since, "scope": scope, "jobs": seen_out},
+            separators=(",", ":"),
+        )
     )
     legacy = out / "jobs.json"
     legacy.unlink(missing_ok=True)

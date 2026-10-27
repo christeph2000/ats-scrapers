@@ -482,7 +482,7 @@
     "Startup": 25,
     "Mid-size": 250
   },
-  "max_age_days": 60,
+  "max_age_days": 180,
   "remember_missing_days": 30,
   "max_jobs": 60000,
   "default_profile": {
