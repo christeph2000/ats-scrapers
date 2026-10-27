@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Platform Engineer @ Acme</title>
+<style>._active{background:#2f6f5e;color:#fff}</style></head>
+<body><h1 class="ashby-job-posting-heading">Platform Engineer</h1>
+<div class="ashby-application-form-container">
+ <div class="ashby-application-form-field-entry"><label for="_systemfield_name" class="ashby-application-form-question-title">Name *</label><input id="_systemfield_name" name="_systemfield_name" required></div>
+ <div class="ashby-application-form-field-entry"><label for="_systemfield_email" class="ashby-application-form-question-title">Email *</label><input id="_systemfield_email" name="_systemfield_email" type="email" required></div>
+ <div class="ashby-application-form-field-entry"><label for="phone-q" class="ashby-application-form-question-title">Phone Number</label><input id="phone-q" type="tel"></div>
+ <div class="ashby-application-form-field-entry"><label for="_systemfield_resume" class="ashby-application-form-question-title">Resume *</label><input id="_systemfield_resume" type="file" required style="display:none"></div>
+ <div class="ashby-application-form-field-entry"><label class="ashby-application-form-question-title">Will you now or in the future require sponsorship to work in India? *</label>
+   <div class="_yesno"><button type="button" class="_option">Yes</button><button type="button" class="_option">No</button></div></div>
+ <div class="ashby-application-form-field-entry"><label for="ctc-q" class="ashby-application-form-question-title">What are your compensation expectations?</label><input id="ctc-q" type="text"></div>
+ <div class="ashby-application-form-field-entry"><label for="hear-q" class="ashby-application-form-question-title">How did you hear about us?</label>
+   <select id="hear-q"><option value="">Select…</option><option>LinkedIn</option><option>Company website</option><option>Referral</option></select></div>
+ <button type="submit" class="ashby-application-form-submit-button">Submit Application</button>
+</div>
+<script>document.querySelectorAll('._yesno button').forEach(b=>b.addEventListener('click',()=>{b.parentElement.querySelectorAll('button').forEach(x=>x.classList.remove('_active'));b.classList.add('_active')}));</script>
+</body></html>

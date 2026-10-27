@@ -98,6 +98,11 @@ sync across devices needs accounts and a backend; that's a later step.)
 When a new version of the page is deployed, a phone that cached the old one
 reloads itself once.
 
+If you use the [Apply Helper](../apply-helper/README.md) browser extension,
+jobs you submit through it are marked **Applied** here the next time you open
+the page (it posts them to the page; the page only accepts messages from
+itself).
+
 ## Check without publishing
 
 Actions → Job Radar → Run workflow → tick **dry_run**. It builds the feed and

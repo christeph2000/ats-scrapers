@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apply Helper settings</title>
+<link rel="stylesheet" href="options.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>Job Radar Apply Helper</h1>
+    <p>Fills Greenhouse, Lever and Ashby application forms for you to review. Everything here is stored only in this browser. <span id="saved" class="saved" hidden>Saved</span></p>
+  </header>
+
+  <section>
+    <h2>Your details</h2>
+    <div class="grid" id="profile"></div>
+  </section>
+
+  <section>
+    <h2>Resume</h2>
+    <p class="hint">Attached to the resume / CV upload on each application. PDF recommended, up to 5 MB.</p>
+    <div class="resume">
+      <span id="resume-name" class="muted">No resume uploaded</span>
+      <label class="btn">Choose file<input type="file" id="resume" accept=".pdf,.doc,.docx" hidden></label>
+      <button class="btn ghost" id="resume-clear" hidden>Remove</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Answer bank</h2>
+    <p class="hint">When a question contains a phrase on the left, the helper answers with the text on the right.
+      Separate alternatives with <code>|</code>: in the question (<code>notice period|how soon can you join</code>) or in the
+      answer (<code>Decline to self-identify|Prefer not to say</code>, first one the form offers wins). Answers you save from the
+      page's <b>Remember my answers</b> button show up here marked <span class="tag">learned</span>.</p>
+    <table class="bank">
+      <thead><tr><th>Question contains</th><th>Answer</th><th></th></tr></thead>
+      <tbody id="bank"></tbody>
+    </table>
+    <div class="row"><button class="btn" id="add">Add answer</button><button class="btn ghost" id="reset-bank">Restore starter answers</button></div>
+  </section>
+
+  <section>
+    <h2>Behaviour</h2>
+    <label class="check"><input type="checkbox" id="s-showPanel"> Show the helper panel on application pages</label>
+    <label class="check"><input type="checkbox" id="s-autoFill"> Fill automatically when I open an application (otherwise press <b>Fill this application</b>)</label>
+    <p class="hint">The helper never submits for you, never ticks consent boxes, and skips anything you've already filled in.</p>
+  </section>
+
+  <section>
+    <h2>Submitted through the helper <span class="muted" id="applied-count"></span></h2>
+    <p class="hint">Recorded when you press Submit on a form. Open your Job Radar page and these get marked <b>Applied</b> there.</p>
+    <ul id="applied" class="applied"></ul>
+    <div class="row"><button class="btn ghost" id="applied-clear">Clear list</button></div>
+  </section>
+
+  <section>
+    <h2>Backup</h2>
+    <p class="hint">Move your details and answers to another browser. The file includes your resume.</p>
+    <div class="row">
+      <button class="btn" id="export">Export</button>
+      <label class="btn">Import<input type="file" id="import" accept="application/json" hidden></label>
+    </div>
+  </section>
+</main>
+<script src="src/common.js"></script>
+<script src="options.js"></script>
+</body>
+</html>
