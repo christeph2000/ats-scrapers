@@ -59,11 +59,18 @@
         const a = e.target.closest("[data-a]")?.dataset.a;
         if (!a) return;
         if (a === "min") root.querySelector(".card").classList.toggle("min");
-        else if (a === "close") this.host.remove();
+        else if (a === "close") { this.closedByUser = true; this.host.remove(); }
         else if (a === "settings") chrome.runtime.sendMessage({ type: "openOptions" });
         else this.h[a] && this.h[a]();
       });
-      document.documentElement.appendChild(this.host);
+      this.closedByUser = false;
+      this.attach();
+    }
+    // Sites built with React (Greenhouse's new job boards) re-render the page and
+    // drop nodes they didn't create; put the panel back unless the user closed it.
+    attach() {
+      if (this.closedByUser || this.host.isConnected) return;
+      (document.body || document.documentElement).appendChild(this.host);
     }
     $(s) { return this.root.querySelector(`[data-s="${s}"]`); }
     busy(on) { this.root.querySelector('[data-a="fill"]').disabled = on; }

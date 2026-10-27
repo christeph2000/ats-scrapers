@@ -104,8 +104,11 @@ def serve_radar(route, _request=None):
 def fill(page):
     page.wait_for_selector("[data-jr-panel]", state="attached", timeout=10000)
     page.locator("[data-jr-panel]").locator('button[data-a="fill"]').click()
+    # The panel may be briefly detached while the site re-renders; wait until it's back and idle.
     page.wait_for_function(
-        "() => !document.querySelector('[data-jr-panel]').shadowRoot.querySelector('[data-a=fill]').disabled"
+        """() => { const p = document.querySelector('[data-jr-panel]');
+                   return p && !p.shadowRoot.querySelector('[data-a=fill]').disabled &&
+                          !/Filling/.test(p.shadowRoot.querySelector('[data-s=status]').textContent); }"""
     )
     return page.locator("[data-jr-panel]").locator('[data-s="status"]').inner_text()
 
@@ -128,6 +131,19 @@ def test_greenhouse(ctx):
     assert "Filled 10" in status and "2 need you" in status
     needs = page.locator("[data-jr-panel]").locator('[data-s="needs"] li').all_inner_texts()
     assert [n.split("?")[0] for n in needs] == ["Why do you want to work at Acme", "I agree to the processing of my data per the privacy policyrequired"]
+    page.close()
+
+
+def test_panel_survives_react_rerender_but_stays_closed_when_closed(ctx):
+    context, _ = ctx
+    page = context.new_page()
+    page.goto(GH_URL)
+    page.wait_for_timeout(2600)                       # past both of the fixture's re-renders
+    assert page.locator("[data-jr-panel]").count() == 1
+    page.locator("[data-jr-panel]").locator('button[data-a="close"]').click()
+    page.evaluate("() => document.body.appendChild(document.createElement('div'))")  # page activity
+    page.wait_for_timeout(1000)
+    assert page.locator("[data-jr-panel]").count() == 0
     page.close()
 
 

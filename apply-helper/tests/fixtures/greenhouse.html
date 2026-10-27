@@ -27,4 +27,8 @@
    ['Yes','No'].filter(o=>o.toLowerCase().includes(q)).forEach((o,i)=>{const d=document.createElement('div');d.setAttribute('role','option');d.id='react-select-3-option-'+i;d.textContent=o;
      d.addEventListener('click',()=>{val.textContent=o;inp.value='';list.hidden=true;});list.appendChild(d)}); list.hidden=!list.children.length;});
  document.getElementById('application-form').addEventListener('submit',e=>{e.preventDefault();document.body.dataset.submitted='1'});
+ // Like React hydrating the whole document: drop any node the app didn't render.
+ const own = new Set([...document.documentElement.children, ...document.body.children]);
+ const rerender = () => [...document.documentElement.children, ...document.body.children].forEach(n => { if (!own.has(n)) n.remove(); });
+ window.addEventListener('load', () => { setTimeout(rerender, 300); setTimeout(rerender, 1600); });
 </script></body></html>

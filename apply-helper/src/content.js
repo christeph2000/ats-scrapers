@@ -115,12 +115,20 @@
 
   // ---- lifecycle -----------------------------------------------------------
 
+  // Don't touch the page until it has loaded and the site's framework has
+  // finished its first render; adding nodes earlier can make React throw them away.
+  let ready = false;
+  const whenLoaded = document.readyState === "complete"
+    ? Promise.resolve() : new Promise((r) => window.addEventListener("load", r, { once: true }));
+  whenLoaded.then(() => setTimeout(() => { ready = true; check(); }, 1200));
+
   async function check() {
-    if (panel && !document.documentElement.contains(panel.host)) return; // user closed it
+    if (!ready || (panel && panel.closedByUser)) return;
     if (!formOnPage()) return;
     const data = await JR.load();
     if (!data.settings.showPanel) return;
     if (!panel) panel = new JR.Panel({ fill: fillAll, remember });
+    else panel.attach();
     if (data.settings.autoFill && autoFilledFor !== location.href) {
       autoFilledFor = location.href;
       fillAll();
@@ -129,5 +137,4 @@
   let timer = null;
   new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(check, 600); })
     .observe(document.documentElement, { childList: true, subtree: true });
-  check();
 })(globalThis.JR);
