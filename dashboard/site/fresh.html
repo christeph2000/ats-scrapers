@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="job-radar" content="1">
+<title>Fresh jobs · Job Radar</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='13' fill='none' stroke='%23b4521d' stroke-width='3'/><circle cx='16' cy='16' r='4' fill='%23b4521d'/></svg>">
+<style>
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1f1c; --muted: #6b6f68; --line: #e3e1da;
+  --accent: #2f6f5e; --accent-soft: #e2efe9; --new: #b4521d; --new-soft: #fbe9dc;
+  --star: #b8860b; --chip: #efeee8; --shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141614; --panel: #1c1f1c; --ink: #e8e8e3; --muted: #9a9e96; --line: #2c302c;
+    --accent: #7cc4ad; --accent-soft: #1f3a32; --new: #f0a273; --new-soft: #3d2618;
+    --star: #e5c15c; --chip: #262a26; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141614; --panel: #1c1f1c; --ink: #e8e8e3; --muted: #9a9e96; --line: #2c302c;
+  --accent: #7cc4ad; --accent-soft: #1f3a32; --new: #f0a273; --new-soft: #3d2618;
+  --star: #e5c15c; --chip: #262a26; --shadow: none;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 60px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+h1 span { color: var(--new); }
+a { color: var(--accent); }
+.sub { color: var(--muted); font-size: 13px; }
+.bar { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 14px 0; display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; box-shadow: var(--shadow); font-size: 14px; }
+.bar .age b { font-variant-numeric: tabular-nums; }
+.bar .age.stale b { color: var(--new); }
+.btn { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: var(--panel); text-decoration: none; white-space: nowrap; }
+.chiprow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
+.chiprow .lbl { color: var(--muted); font-size: 12px; width: 52px; flex-shrink: 0; }
+.chip { font: inherit; font-size: 13px; padding: 3px 10px; border-radius: 999px; cursor: pointer; background: var(--chip); color: var(--ink); border: 1px solid transparent; white-space: nowrap; }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.chip .hint { color: var(--muted); font-size: 11.5px; margin-left: 3px; }
+.chip.win[aria-pressed="true"] { background: var(--new-soft); border-color: var(--new); color: var(--new); }
+.opts { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 13px; margin: 6px 0 10px; }
+.opts label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.count { color: var(--muted); font-size: 13px; margin: 10px 0 6px; }
+.list { display: flex; flex-direction: column; gap: 6px; }
+.job { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; grid-template-columns: 74px 1fr auto; gap: 4px 12px; box-shadow: var(--shadow); align-items: start; }
+.job.applied { border-left: 3px solid var(--accent); }
+.job.saved { border-left: 3px solid var(--new); }
+.ago { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13px; text-align: center; padding: 4px 0; border-radius: 8px; background: var(--chip); color: var(--muted); }
+.ago.hot { background: var(--new-soft); color: var(--new); }
+.title { font-weight: 600; color: var(--ink); text-decoration: none; }
+.title:hover { text-decoration: underline; }
+.meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 2px; }
+.meta .co { color: var(--ink); font-weight: 500; }
+.star { color: var(--star); margin-right: 3px; }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.tag { font-size: 11.5px; padding: 1px 7px; border-radius: 6px; background: var(--chip); color: var(--muted); }
+.tag.lvl { background: var(--accent-soft); color: var(--accent); }
+.tag.sup { background: var(--new-soft); color: var(--new); font-weight: 600; }
+.actions { display: flex; gap: 4px; }
+.act { font: inherit; font-size: 12.5px; padding: 4px 9px; border-radius: 7px; cursor: pointer; background: none; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.act.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.empty { text-align: center; color: var(--muted); padding: 34px 12px; background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; }
+.notice { background: var(--new-soft); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin: 0 0 10px; }
+.foot { margin-top: 24px; color: var(--muted); font-size: 12.5px; }
+@media (max-width: 640px) {
+  .job { grid-template-columns: 60px 1fr; }
+  .actions { grid-column: 1 / -1; }
+  .chiprow { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -16px; padding-right: 16px; }
+  .chiprow .lbl { width: auto; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span>⚡</span> Fresh jobs</h1>
+    <a href="./" class="sub">← All jobs</a>
+  </header>
+
+  <div class="bar">
+    <span class="age" id="age">Loading…</span>
+    <span class="sub" id="checked"></span>
+    <span style="flex:1"></span>
+    <a class="btn" id="run" target="_blank" rel="noopener">Check again on GitHub</a>
+  </div>
+  <div class="notice" id="notice" hidden></div>
+
+  <div class="chiprow" id="row-win"><span class="lbl">Posted</span></div>
+  <div class="chiprow" id="row-place"><span class="lbl">Where</span></div>
+  <div class="opts">
+    <label><input type="checkbox" id="mine" checked> <span id="mine-label">Only my roles</span></label>
+    <label><input type="checkbox" id="mylevels" checked> Only my levels</label>
+    <label><input type="checkbox" id="done"> Show applied / hidden</label>
+  </div>
+
+  <div class="count" id="count"></div>
+  <div id="results"></div>
+
+  <p class="foot">Checked directly with Greenhouse, Lever and Ashby, for every company on those sites that appears in Job Radar.
+    Workday and other sources only update in the daily feed. Your setup and Saved / Applied / Hidden are shared with the main page.</p>
+</div>
+
+<script>
+(() => {
+  const KEY = "jobradar.v1", PROFILE = "jobradar.profile.v1";
+  const WINDOWS = [1, 3, 6, 24];
+  const read = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+  const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const companyKey = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+  const saved = read(KEY) || {};
+  saved.status ||= {}; saved.mutedCompanies ||= [];
+  const profile = read(PROFILE);
+  const targets = ((profile && profile.targets) || []).map(companyKey).filter(Boolean);
+  const state = { win: 1, place: new Set(profile && profile.places ? profile.places : ["city", "india", "remote"]) };
+  let data = null;
+
+  // Where "Check again" goes: the fresh workflow of this repo.
+  const repoGuess = () => {
+    const user = location.hostname.split(".")[0], repo = location.pathname.split("/")[1];
+    return `https://github.com/${user}/${repo}/actions/workflows/job-radar-fresh.yml`;
+  };
+
+  const minsAgo = (ts) => Math.max(0, Math.round((Date.now() - Date.parse(ts)) / 6e4));
+  const agoText = (m) => m < 60 ? `${m} min` : m < 48 * 60 ? `${Math.floor(m / 60)} h ${m % 60 ? (m % 60) + "m" : ""}`.trim() : `${Math.round(m / 1440)} d`;
+  const statusOf = (j) => saved.status[j.id] || (saved.mutedCompanies.includes(j.company) ? "hidden" : "");
+  const placeOf = (j) => j.place !== "india" ? j.place : (profile && profile.city && j.cities.includes(profile.city) ? "city" : "india");
+  const isTarget = (j) => { const k = " " + companyKey(j.company) + " "; return targets.some(t => k.includes(" " + t + " ")); };
+
+  function base(j) {
+    if (!$("done").checked && ["applied", "hidden"].includes(statusOf(j))) return false;
+    if ($("mine").checked && profile && profile.roles && profile.roles.length && !j.roles.some(r => profile.roles.includes(r))) return false;
+    if ($("mylevels").checked && profile && profile.levels && profile.levels.length && !profile.levels.includes(j.level)) return false;
+    if (state.place.size && !state.place.has(placeOf(j))) return false;
+    return true;
+  }
+
+  function chips() {
+    const winRow = $("row-win"); winRow.querySelectorAll(".chip").forEach(b => b.remove());
+    WINDOWS.forEach(h => {
+      const n = data.jobs.filter(j => base(j) && minsAgo(j.posted_ts) <= h * 60).length;
+      const b = document.createElement("button");
+      b.className = "chip win"; b.setAttribute("aria-pressed", state.win === h);
+      b.innerHTML = `Last ${h} h<span class="hint">${n}</span>`;
+      b.onclick = () => { state.win = h; render(); };
+      winRow.appendChild(b);
+    });
+    const placeRow = $("row-place"); placeRow.querySelectorAll(".chip").forEach(b => b.remove());
+    const places = [...(profile && profile.city ? [["city", profile.city]] : []),
+      ["india", profile && profile.city ? "Other India" : "India"], ["remote", "Remote"], ["abroad", "Abroad"]];
+    places.forEach(([k, l]) => {
+      const b = document.createElement("button");
+      b.className = "chip"; b.textContent = l; b.setAttribute("aria-pressed", state.place.has(k));
+      b.onclick = () => { state.place.has(k) ? state.place.delete(k) : state.place.add(k); render(); };
+      placeRow.appendChild(b);
+    });
+  }
+
+  function card(j) {
+    const st = statusOf(j), m = minsAgo(j.posted_ts);
+    const tags = [...j.support.map(s => `<span class="tag sup">${esc(s)}</span>`),
+      j.level !== "Unspecified" ? `<span class="tag lvl">${esc(j.level)}</span>` : "",
+      ...j.stack.slice(0, 6).map(s => `<span class="tag">${esc(s)}</span>`)].join("");
+    const btn = (k, l) => `<button class="act ${st === k ? "on" : ""}" data-id="${esc(j.id)}" data-act="${k}">${l}</button>`;
+    return `<div class="job ${st}">
+      <div class="ago ${m <= 60 ? "hot" : ""}" title="Posted ${esc(new Date(j.posted_ts).toLocaleString())}">${agoText(m)}<br><small>ago</small></div>
+      <div>
+        <a class="title" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>
+        <div class="meta"><span class="co">${isTarget(j) ? '<span class="star">★</span>' : ""}${esc(j.company)}</span>
+          <span title="${esc(j.location_full || j.location)}">${esc(j.location)}</span>${j.salary ? `<span>${esc(j.salary)}</span>` : ""}<span>${esc(j.ats)}</span></div>
+        <div class="tags">${tags}</div>
+      </div>
+      <div class="actions">${btn("saved", "Save")}${btn("applied", "Applied")}${btn("hidden", "Hide")}</div>
+    </div>`;
+  }
+
+  function render() {
+    if (!data) return;
+    chips();
+    const m = minsAgo(data.generated_at);
+    $("age").className = "age" + (m > 60 ? " stale" : "");
+    $("age").innerHTML = `Checked <b>${agoText(m)} ago</b>`;
+    const c = data.companies_checked || {};
+    $("checked").textContent = `${Object.values(c).reduce((a, b) => a + b, 0).toLocaleString()} companies · ${data.postings_seen.toLocaleString()} open postings scanned`;
+    const list = data.jobs.filter(j => base(j) && minsAgo(j.posted_ts) <= state.win * 60);
+    $("count").textContent = `${list.length} job${list.length === 1 ? "" : "s"} posted in the last ${state.win} h`;
+    let empty = `Nothing in the last ${state.win} h for your setup.`;
+    if (m > state.win * 60) empty += ` The last check was ${agoText(m)} ago, so press “Check again on GitHub” for newer posts.`;
+    else if (state.win < 24) empty += " Try a wider window.";
+    $("results").innerHTML = list.length ? `<div class="list">${list.map(card).join("")}</div>` : `<div class="empty">${esc(empty)}</div>`;
+  }
+
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-act]");
+    if (!t) return;
+    const id = t.dataset.id;
+    saved.status[id] === t.dataset.act ? delete saved.status[id] : (saved.status[id] = t.dataset.act);
+    write(KEY, saved);
+    render();
+  });
+  ["mine", "mylevels", "done"].forEach(id => $(id).onchange = render);
+  if (!profile) {
+    $("mine-label").innerHTML = 'Only my roles (<a href="./">set them up</a>)';
+    $("mine").checked = false; $("mylevels").checked = false;
+  }
+  $("run").href = repoGuess();
+
+  async function load() {
+    try {
+      const r = await fetch("data/fresh.json?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      const next = await r.json();
+      if (data && next.generated_at !== data.generated_at) {
+        const before = new Set(data.jobs.map(j => j.id));
+        const added = next.jobs.filter(j => !before.has(j.id)).length;
+        $("notice").hidden = false;
+        $("notice").textContent = `Just updated: ${added} new job${added === 1 ? "" : "s"} since the previous check.`;
+      }
+      data = next;
+      data.jobs.forEach(j => { j.support ||= []; j.stack ||= []; j.cities ||= []; j.roles ||= []; });
+      if (data.workflow_url) $("run").href = data.workflow_url;
+      render();
+    } catch {
+      if (!data) {
+        $("age").textContent = "No fresh check yet";
+        $("results").innerHTML = '<div class="empty">Press “Check again on GitHub”, then “Run workflow”. This page updates by itself when the run finishes (about 5–10 minutes).</div>';
+      }
+    }
+  }
+  load();
+  setInterval(load, 60_000);          // picks up a run you just started
+  setInterval(render, 30_000);        // keeps "x min ago" current
+})();
+</script>
+</body>
+</html>

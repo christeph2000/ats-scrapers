@@ -496,5 +496,10 @@
     "abroad": false,
     "levels": [],
     "targets": []
+  },
+  "fresh": {
+    "window_hours": 24,
+    "concurrency": 24,
+    "extra_companies": []
   }
 }
