@@ -253,7 +253,11 @@
     "marketing manager",
     "marketing executive",
     "hr executive",
-    "hr manager"
+    "hr manager",
+    "clinical programmer",
+    "clinical (sas) programmer",
+    "sas programmer",
+    "statistical programmer"
   ],
   "india_terms": [
     "india",
@@ -496,5 +500,26 @@
     "abroad": false,
     "levels": [],
     "targets": []
+  },
+  "fresh": {
+    "window_hours": 24,
+    "concurrency": 24,
+    "feed_sources": [
+      "greenhouse",
+      "lever",
+      "ashby",
+      "smartrecruiters",
+      "recruitee",
+      "workable",
+      "keka",
+      "darwinbox"
+    ],
+    "presence_sources": [],
+    "all_companies_sources": [
+      "keka",
+      "darwinbox"
+    ],
+    "presence_cache_hours": 20,
+    "extra_companies": []
   }
 }

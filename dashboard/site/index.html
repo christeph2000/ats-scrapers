@@ -26,6 +26,8 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+.freshlink { color: var(--new); font-weight: 600; text-decoration: none; }
+.freshlink:hover { text-decoration: underline; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -161,7 +163,7 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
 <div class="wrap">
   <header>
     <h1>Job Radar</h1>
-    <div class="sub" id="updated">Loading…</div>
+    <div class="sub"><a href="fresh.html" class="freshlink">⚡ Fresh jobs (last hours)</a> · <span id="updated">Loading…</span></div>
   </header>
   <div class="setupbar" id="setupbar" hidden>
     <span id="setup-summary"></span>

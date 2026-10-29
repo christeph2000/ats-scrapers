@@ -30,9 +30,10 @@ permissions:
   pages: write
   id-token: write
 
+# Shared with "Job Radar – Fresh" so the two never publish over each other.
 concurrency:
   group: job-radar
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -49,7 +50,7 @@ jobs:
         run: pip install httpx pyarrow pytest
 
       - name: Test filters
-        run: python -m pytest dashboard/test_build_jobs.py -q -p no:cacheprovider -o addopts=""
+        run: python -m pytest dashboard/test_build_jobs.py dashboard/test_fresh_jobs.py -q -p no:cacheprovider -o addopts=""
 
       - id: pages
         uses: actions/configure-pages@v5
@@ -59,6 +60,10 @@ jobs:
           python dashboard/build_jobs.py
           --previous "${{ steps.pages.outputs.base_url }}/data"
           --app-version "${{ github.sha }}"
+
+      - name: Keep the latest fresh-jobs list
+        # Pages replaces the whole site, so carry /fresh.html's data forward.
+        run: python dashboard/pull_live.py "${{ steps.pages.outputs.base_url }}/data" dashboard/site/data --fresh
 
       - name: Stamp page version
         # Lets phones that cached an older page notice the new one and reload.
