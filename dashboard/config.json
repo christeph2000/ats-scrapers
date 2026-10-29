@@ -514,14 +514,7 @@
       "keka",
       "darwinbox"
     ],
-    "presence_sources": [
-      "greenhouse",
-      "lever",
-      "ashby",
-      "smartrecruiters",
-      "recruitee",
-      "workable"
-    ],
+    "presence_sources": [],
     "all_companies_sources": [
       "keka",
       "darwinbox"

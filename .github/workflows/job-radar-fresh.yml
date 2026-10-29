@@ -9,8 +9,6 @@ name: Job Radar – Fresh
 # GitHub mobile app too). Takes ~5–10 minutes including GitHub's queue.
 
 on:
-  push:  # TEMP-BRANCH-TEST: remove before merging
-    branches: [job-radar-fresh]
   workflow_dispatch:
     inputs:
       dry_run:

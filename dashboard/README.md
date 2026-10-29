@@ -50,21 +50,32 @@ The daily feed can be up to a day behind. For jobs posted minutes ago, open
 opens **Actions → Job Radar – Fresh → Run workflow**. It also works from the
 GitHub mobile app.
 
-That workflow asks Greenhouse, Lever and Ashby directly (their public posting
-APIs, via this repo's own scrapers). It checks every company on those three
-platforms that appears in the Job Radar feed (about 1,000), plus
-`fresh.extra_companies` in `config.json` (e.g. `"greenhouse:razorpay"`), and
-keeps jobs posted in the last 24 h that pass the same role / location / visa
-rules. A run takes about 1–2 minutes of checking, roughly 5–10 minutes
-including GitHub's queue and publishing. The fresh page refreshes itself while
-open, shows how many minutes ago each job was posted, and filters to 1 / 3 / 6
-/ 24 h, using your setup and statuses from the main page.
+That workflow asks the job boards directly (their public posting APIs, via
+this repo's own scrapers): **Greenhouse, Lever, Ashby, SmartRecruiters,
+Recruitee, Workable, Keka and Darwinbox**. It keeps jobs posted in the last 24 h
+that pass the same role / location / visa rules. Which companies it checks is
+set in the `fresh` section of `config.json`:
+
+| Key | Companies |
+|---|---|
+| `feed_sources` | every company on these platforms that has a job in the Job Radar feed (~1,200) |
+| `all_companies_sources` | every company in `ats-companies/<platform>.csv` (Keka, Darwinbox: small, India-heavy lists) |
+| `presence_sources` | every company with *any* India/remote posting in the dataset. **Off by default:** a measured run checked 1,860 extra companies for just 3 extra jobs a day |
+| `extra_companies` | your own additions, e.g. `"greenhouse:razorpay"`, `"smartrecruiters:Visa"` |
+
+A measured run found about **11 matching jobs in the last hour and 150 in
+24 h** (SmartRecruiters alone ~40/day). Expect hour-to-hour swings: many
+companies post during US working hours. Workable and Darwinbox sometimes only
+give a posting *date*; those jobs show as "Today / Yesterday" and only in the
+24 h view. A run takes a few minutes, plus GitHub's queue. The fresh page
+refreshes itself while open, shows how many minutes ago each job was posted,
+and filters to 1 / 3 / 6 / 24 h using your setup and statuses from the main page.
 
 Workday and the other sources still update only through the daily feed. The
 two workflows share one queue, so they never publish over each other, and the
 daily build carries the latest fresh list forward. Please run it on demand
-rather than on a tight schedule: each run makes about 1,000 requests to those
-job boards.
+rather than on a tight schedule: each run makes a few thousand requests to
+those job boards.
 
 ## Dates: Posted vs Added
 
