@@ -101,7 +101,8 @@ a { color: var(--accent); }
   <div class="count" id="count"></div>
   <div id="results"></div>
 
-  <p class="foot">Checked directly with Greenhouse, Lever and Ashby, for every company on those sites that appears in Job Radar.
+  <p class="foot">Checked directly with Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, Workable, Keka and Darwinbox,
+    for companies on those sites that post India or remote jobs. Sites that only give a posting date show “Today / Yesterday” and appear in the 24 h view.
     Workday and other sources only update in the daily feed. Your setup and Saved / Applied / Hidden are shared with the main page.</p>
 </div>
 
@@ -130,6 +131,13 @@ a { color: var(--accent); }
 
   const minsAgo = (ts) => Math.max(0, Math.round((Date.now() - Date.parse(ts)) / 6e4));
   const agoText = (m) => m < 60 ? `${m} min` : m < 48 * 60 ? `${Math.floor(m / 60)} h ${m % 60 ? (m % 60) + "m" : ""}`.trim() : `${Math.round(m / 1440)} d`;
+  // Some platforms only give a posting date; those jobs only count in the 24 h view.
+  const inWindow = (j, h) => j.approx ? h >= 24 : minsAgo(j.posted_ts) <= h * 60;
+  const dayLabel = (ts) => {
+    const d = new Date(ts.slice(0, 10) + "T12:00:00Z"), t = new Date();
+    const diff = Math.round((Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()) - Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())) / 864e5);
+    return diff <= 0 ? "Today" : diff === 1 ? "Yesterday" : `${diff} d`;
+  };
   const statusOf = (j) => saved.status[j.id] || (saved.mutedCompanies.includes(j.company) ? "hidden" : "");
   const placeOf = (j) => j.place !== "india" ? j.place : (profile && profile.city && j.cities.includes(profile.city) ? "city" : "india");
   const isTarget = (j) => { const k = " " + companyKey(j.company) + " "; return targets.some(t => k.includes(" " + t + " ")); };
@@ -145,7 +153,7 @@ a { color: var(--accent); }
   function chips() {
     const winRow = $("row-win"); winRow.querySelectorAll(".chip").forEach(b => b.remove());
     WINDOWS.forEach(h => {
-      const n = data.jobs.filter(j => base(j) && minsAgo(j.posted_ts) <= h * 60).length;
+      const n = data.jobs.filter(j => base(j) && inWindow(j, h)).length;
       const b = document.createElement("button");
       b.className = "chip win"; b.setAttribute("aria-pressed", state.win === h);
       b.innerHTML = `Last ${h} h<span class="hint">${n}</span>`;
@@ -170,7 +178,9 @@ a { color: var(--accent); }
       ...j.stack.slice(0, 6).map(s => `<span class="tag">${esc(s)}</span>`)].join("");
     const btn = (k, l) => `<button class="act ${st === k ? "on" : ""}" data-id="${esc(j.id)}" data-act="${k}">${l}</button>`;
     return `<div class="job ${st}">
-      <div class="ago ${m <= 60 ? "hot" : ""}" title="Posted ${esc(new Date(j.posted_ts).toLocaleString())}">${agoText(m)}<br><small>ago</small></div>
+      ${j.approx
+        ? `<div class="ago" title="This site only gives the posting date, not the time">${dayLabel(j.posted_ts)}<br><small>date only</small></div>`
+        : `<div class="ago ${m <= 60 ? "hot" : ""}" title="Posted ${esc(new Date(j.posted_ts).toLocaleString())}">${agoText(m)}<br><small>ago</small></div>`}
       <div>
         <a class="title" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>
         <div class="meta"><span class="co">${isTarget(j) ? '<span class="star">★</span>' : ""}${esc(j.company)}</span>
@@ -189,7 +199,7 @@ a { color: var(--accent); }
     $("age").innerHTML = `Checked <b>${agoText(m)} ago</b>`;
     const c = data.companies_checked || {};
     $("checked").textContent = `${Object.values(c).reduce((a, b) => a + b, 0).toLocaleString()} companies · ${data.postings_seen.toLocaleString()} open postings scanned`;
-    const list = data.jobs.filter(j => base(j) && minsAgo(j.posted_ts) <= state.win * 60);
+    const list = data.jobs.filter(j => base(j) && inWindow(j, state.win));
     $("count").textContent = `${list.length} job${list.length === 1 ? "" : "s"} posted in the last ${state.win} h`;
     let empty = `Nothing in the last ${state.win} h for your setup.`;
     if (m > state.win * 60) empty += ` The last check was ${agoText(m)} ago, so press “Check again on GitHub” for newer posts.`;

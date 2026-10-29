@@ -1,14 +1,16 @@
 name: Job Radar – Fresh
 
-# On demand: ask Greenhouse, Lever and Ashby directly for jobs posted in the
+# On demand: ask the job boards directly (Greenhouse, Lever, Ashby,
+# SmartRecruiters, Recruitee, Workable, Keka, Darwinbox) for jobs posted in the
 # last 24 hours and publish them to /fresh.html (newest first, minutes ago).
-# Only checks companies that already appear in the Job Radar feed, plus
-# fresh.extra_companies in dashboard/config.json.
+# Which companies: see the "fresh" section of dashboard/config.json.
 #
 # Run it from Actions → "Job Radar – Fresh" → Run workflow (works from the
 # GitHub mobile app too). Takes ~5–10 minutes including GitHub's queue.
 
 on:
+  push:  # TEMP-BRANCH-TEST: remove before merging
+    branches: [job-radar-fresh]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -30,7 +32,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -39,8 +41,11 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        # The repo's own Greenhouse / Lever / Ashby scrapers (base install + bs4).
-        run: pip install -e . beautifulsoup4 pyarrow pytest
+        # The repo's own scrapers (base install + bs4); httpcloak is the
+        # TLS-impersonating client Darwinbox's Cloudflare front needs.
+        run: |
+          pip install -e . beautifulsoup4 pyarrow pytest
+          pip install httpcloak || echo "::warning::httpcloak unavailable; Darwinbox boards will fail"
 
       - name: Test
         run: python -m pytest dashboard/test_fresh_jobs.py dashboard/test_build_jobs.py -q -p no:cacheprovider -o addopts=""
@@ -51,7 +56,7 @@ jobs:
       - name: Pull the published feed
         run: >
           python dashboard/pull_live.py "${{ steps.pages.outputs.base_url }}/data" dashboard/site/data
-          --feed --app-version "${{ github.sha }}"
+          --feed --fresh --app-version "${{ github.sha }}"
 
       - name: Check job boards for fresh postings
         run: >
@@ -65,17 +70,19 @@ jobs:
         run: |
           python - <<'PY'
           import json
-          from datetime import datetime, timedelta, timezone
           d = json.load(open("dashboard/site/data/fresh.json"))
-          now = datetime.now(timezone.utc)
-          def within(h):
-              cut = (now - timedelta(hours=h)).isoformat(timespec="minutes").replace("+00:00", "Z")
-              return sum(1 for j in d["jobs"] if j["posted_ts"] >= cut)
-          lines = [f"checked {d['companies_checked']} ({d['companies_failed']} failed) in {d['seconds']}s, "
-                   f"{d['postings_seen']} postings",
-                   "fresh: " + ", ".join(f"{h}h {within(h)}" for h in (1, 3, 6, 24))]
-          lines += [f"{j['posted_ts'][11:16]}Z  {j['company']} · {j['title']} · {j['location']}" for j in d["jobs"][:15]]
+          fmt = lambda c: " · ".join(f"{k} {v}" for k, v in c.items())
+          lines = [f"checked {sum(d['companies_checked'].values())} companies in {d['seconds']}s, "
+                   f"{d['postings_seen']} postings; failed {d['failed_by_ats'] or 0}",
+                   "companies by platform: " + fmt(d["companies_checked"]),
+                   "companies by origin: " + fmt(d["companies_by_origin"]),
+                   "FRESH JOBS: " + fmt(d["counts"])]
+          lines += [f"  from {o}: " + fmt(c) for o, c in d["counts_by_origin"].items()]
+          lines += [f"  on {a}: " + fmt(c) for a, c in d["counts_by_ats"].items()]
           print("::notice title=Fresh jobs::" + "%0A".join(lines)[:3900])
+          top = [f"{j['posted_ts'][11:16]}Z {'~' if j.get('approx') else ' '} {j['company']} · {j['title']} · {j['location']} [{j['origin']}]"
+                 for j in d["jobs"][:25]]
+          print("::notice title=Newest::" + "%0A".join(top)[:3900])
           PY
 
       - uses: actions/upload-pages-artifact@v3

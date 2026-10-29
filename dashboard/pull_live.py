@@ -31,7 +31,9 @@ def main() -> int:
     parser.add_argument("base", help="Live data/ URL")
     parser.add_argument("dest", help="Local data/ folder")
     parser.add_argument("--feed", action="store_true", help="index.json, seen.json and role files")
-    parser.add_argument("--fresh", action="store_true", help="fresh.json, if published")
+    parser.add_argument(
+        "--fresh", action="store_true", help="fresh.json and fresh_companies.json, if published"
+    )
     parser.add_argument("--app-version", help="Rewrite index.json's app_version to this")
     args = parser.parse_args()
 
@@ -55,12 +57,14 @@ def main() -> int:
                 (dest / name).write_bytes(body)
             print(f"pulled feed: {len(index['roles'])} role files")
         if args.fresh:
-            body = get(client, f"{base}/fresh.json")
-            if body is not None:
-                (dest / "fresh.json").write_bytes(body)
-                print("pulled fresh.json")
-            else:
-                print("no fresh.json published yet")
+            # fresh.json for /fresh.html, fresh_companies.json = cached company list
+            for name in ("fresh.json", "fresh_companies.json"):
+                body = get(client, f"{base}/{name}")
+                if body is not None:
+                    (dest / name).write_bytes(body)
+                    print(f"pulled {name}")
+                else:
+                    print(f"no {name} published yet")
     return 0
 
 
