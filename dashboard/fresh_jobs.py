@@ -57,8 +57,15 @@ def slug_from_url(url: str) -> tuple[str, str] | None:
     return None
 
 
+DISPLAY_NAMES: dict[tuple[str, str], str] = {}
+
+
 def load_directory() -> dict[str, dict[str, str]]:
-    """{ats: {company_key(name or slug): slug}} from the repo's company lists."""
+    """{ats: {company_key(name or slug): slug}} from the repo's company lists.
+
+    Also fills ``DISPLAY_NAMES`` ({(ats, slug): "Proper Name"}) so the page can
+    show "GoDaddy" rather than the board slug "godaddy".
+    """
     out: dict[str, dict[str, str]] = {}
     for ats in ATS:
         path = REPO / "ats-companies" / f"{ats}.csv"
@@ -68,6 +75,8 @@ def load_directory() -> dict[str, dict[str, str]]:
                 for row in csv.DictReader(fh):
                     slug = (row.get("slug") or "").strip()
                     if slug:
+                        if (row.get("name") or "").strip():
+                            DISPLAY_NAMES.setdefault((ats, slug), row["name"].strip())
                         table.setdefault(company_key(row.get("name") or ""), slug)
                         table.setdefault(company_key(slug), slug)
         out[ats] = table
@@ -92,11 +101,11 @@ def companies_from_feed(feed_dir: Path, extra: list[str]) -> dict[tuple[str, str
                 hit[1] if hit and hit[0] == ats else directory[ats].get(company_key(job["company"]))
             )
             if slug:
-                found.setdefault((ats, slug), job["company"])
+                found.setdefault((ats, slug), DISPLAY_NAMES.get((ats, slug)) or job["company"])
     for item in extra:
         ats, _, slug = item.partition(":")
         if ats in ATS and slug:
-            found.setdefault((ats, slug), slug)
+            found.setdefault((ats, slug), DISPLAY_NAMES.get((ats, slug)) or slug)
     return found
 
 

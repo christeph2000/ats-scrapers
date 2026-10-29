@@ -98,6 +98,18 @@ def test_companies_from_feed_uses_urls_directory_and_extras(tmp_path):
     }
 
 
+def test_board_slugs_get_proper_names_from_the_company_lists(tmp_path):
+    (tmp_path / "roles").mkdir()
+    (tmp_path / "index.json").write_text(json.dumps({"roles": {"B": {"file": "roles/b.json"}}}))
+    job_ = {
+        "ats": "greenhouse",
+        "company": "1910genetics",
+        "url": "https://job-boards.greenhouse.io/1910genetics/jobs/1",
+    }
+    (tmp_path / "roles" / "b.json").write_text(json.dumps({"jobs": [job_]}))
+    assert companies_from_feed(tmp_path, []) == {("greenhouse", "1910genetics"): "1910"}
+
+
 def test_select_fresh_keeps_recent_in_scope_jobs_newest_first():
     scraped = [
         ("greenhouse", "acme", job(ats_id="1", minutes_ago=30)),
@@ -105,6 +117,11 @@ def test_select_fresh_keeps_recent_in_scope_jobs_newest_first():
         ("greenhouse", "acme", job(ats_id="3", minutes_ago=60 * 30)),  # too old
         ("greenhouse", "acme", job(ats_id="4", location="San Francisco, CA")),  # out of scope
         ("greenhouse", "acme", job(ats_id="5", title="Account Executive")),  # not engineering
+        (
+            "greenhouse",
+            "acme",
+            job(ats_id="7", title="Clinical (SAS) Programmer- Lead"),
+        ),  # not software
         (
             "greenhouse",
             "acme",
